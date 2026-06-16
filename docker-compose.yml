@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: cyber-audit-db
+    environment:
+      POSTGRES_DB: cyber_audit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecretpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d cyber_audit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cyber-audit-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:${DB_PASSWORD:-supersecretpassword}@postgres:5432/cyber_audit
+      SECRET_KEY: ${SECRET_KEY:-change-this-to-a-secure-256-bit-key-in-production}
+      FRONTEND_URL: http://localhost:3000
+    volumes:
+      - report_storage:/storage/reports
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: cyber-audit-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+
+  adminer:
+    image: adminer:latest
+    container_name: cyber-audit-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+    driver: local
+  report_storage:
+    driver: local
