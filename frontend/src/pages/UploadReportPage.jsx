@@ -179,9 +179,9 @@ function UploadReportPage() {
           {result && (
             <Box sx={{ mt: 3 }}>
               <Alert
-                severity="success"
+                severity={result.duplicate_status === 'PARTIAL_DUPLICATE' ? 'warning' : 'success'}
                 sx={{ mb: 3, borderRadius: 2 }}
-                icon={<CheckCircle />}
+                icon={result.duplicate_status === 'PARTIAL_DUPLICATE' ? <ErrorIcon /> : <CheckCircle />}
               >
                 {result.message}
               </Alert>
@@ -229,6 +229,15 @@ function UploadReportPage() {
                 >
                   SHA256: {result.sha256_hash}
                 </Typography>
+                {result.simhash && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 1, fontFamily: 'monospace', wordBreak: 'break-all' }}
+                  >
+                    SimHash: {result.simhash}
+                  </Typography>
+                )}
               </Paper>
 
               <Button

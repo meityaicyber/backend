@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -150,6 +150,7 @@ function ReportsPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>File</TableCell>
+                  <TableCell>Version</TableCell>
                   <TableCell>Uploader</TableCell>
                   <TableCell>Size</TableCell>
                   <TableCell>Status</TableCell>
@@ -161,7 +162,7 @@ function ReportsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 6 }).map((_, j) => (
+                      {Array.from({ length: 7 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton variant="text" />
                         </TableCell>
@@ -170,7 +171,7 @@ function ReportsPage() {
                   ))
                 ) : reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                       <Description sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                       <Typography color="text.secondary">No reports found</Typography>
                     </TableCell>
@@ -189,15 +190,52 @@ function ReportsPage() {
                           <Typography fontSize="1.2rem">
                             {extIcon[report.file_extension] || '📄'}
                           </Typography>
-                          <Box>
-                            <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 250 }}>
-                              {report.original_filename}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {report.file_extension.toUpperCase()}
-                            </Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 250 }}>
+                                {report.original_filename}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {report.file_extension.toUpperCase()}
+                              </Typography>
+                            </Box>
+                            {/* Hashes */}
+                            <Box sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                SHA256: {report.sha256_hash.substring(0, 16)}...
+                              </Typography>
+                              {report.simhash && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                                  SimHash: {report.simhash}
+                                </Typography>
+                              )}
+                            </Box>
                           </Box>
                         </Box>
+                      </TableCell>
+                      <TableCell>
+                        {report.partial_duplicate ? (
+                          <Link
+                            to={`/reports/${report.partial_duplicate.original_report_id}`}
+                            style={{ textDecoration: 'none' }}
+                          >
+                            <Chip
+                              label="Partial Duplicate"
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                              sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}
+                            />
+                          </Link>
+                        ) : (
+                          <Chip
+                            label="Original"
+                            size="small"
+                            color="success"
+                            variant="outlined"
+                            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                          />
+                        )}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2" color="text.secondary">

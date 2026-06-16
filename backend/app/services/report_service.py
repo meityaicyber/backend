@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload, joinedload
 
-from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, UploadStatus
+from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, UploadStatus, PartialDuplicate
 from app.models.audit import AuditLog
 from app.utils.file_utils import (
     validate_extension,
@@ -20,6 +20,7 @@ from app.utils.file_utils import (
     MIME_TYPE_MAP,
 )
 from app.utils.clamav_utils import scan_file_bytes
+from app.utils.simhash_utils import calculate_simhash, is_partial_duplicate
 
 
 async def upload_report(
@@ -115,6 +116,53 @@ async def upload_report(
         await db.commit()
         raise ValueError(scan_message)
 
+    # 3.7 SimHash Partial Duplicate Check
+    simhash_val = calculate_simhash(file_bytes, extension)
+    duplicate_status = "UNIQUE"
+    
+    partial_duplicate_info = None
+
+    if simhash_val:
+        # Fetch existing simhashes to compare
+        # In a real large-scale system, we'd use pg_similarity or bitwise queries, 
+        # but for this scale we can fetch them and compare in Python
+        existing_reports = await db.execute(
+            select(Report.report_id, Report.simhash, Report.original_filename)
+            .where(Report.simhash.isnot(None))
+            .where(Report.upload_status != UploadStatus.REJECTED)
+        )
+        for r_id, ex_simhash, ex_filename in existing_reports.all():
+            if is_partial_duplicate(simhash_val, ex_simhash):
+                duplicate_status = "PARTIAL_DUPLICATE"
+                
+                # We calculate exact hamming distance for the record (though is_partial_duplicate already does, it returns bool)
+                # Let's just store the info so we can create the record later
+                def get_hamming_distance(s1, s2):
+                    try:
+                        x = (int(s1) ^ int(s2)) & ((1 << 64) - 1)
+                        ans = 0
+                        while x:
+                            ans += 1
+                            x &= x - 1
+                        return ans
+                    except: return None
+                
+                partial_duplicate_info = {
+                    "original_report_id": r_id,
+                    "original_filename": ex_filename,
+                    "hamming_distance": get_hamming_distance(simhash_val, ex_simhash)
+                }
+
+                await _create_audit_log(
+                    db, user_id, None, "PARTIAL_DUPLICATE_DETECTED", "WARNING",
+                    {
+                        "filename": filename,
+                        "similar_to": ex_filename,
+                        "simhash": simhash_val
+                    }
+                )
+                break
+
     # 4. Save file to disk
     dir_path, stored_filename = get_storage_path(filename)
     file_path = save_file_to_disk(file_bytes, dir_path, stored_filename)
@@ -132,6 +180,7 @@ async def upload_report(
         mime_type=detected_mime,
         file_size=len(file_bytes),
         sha256_hash=sha256_hash,
+        simhash=simhash_val,
         page_count=page_count,
         upload_status=UploadStatus.UPLOADED,
     )
@@ -143,7 +192,7 @@ async def upload_report(
         report_id=report.report_id,
         file_type_valid=True,
         malware_scan_status="PASSED",
-        duplicate_status="UNIQUE",
+        duplicate_status=duplicate_status,
         validation_status="PASSED",
         validation_notes="Clear from malware",
     )
@@ -177,6 +226,17 @@ async def upload_report(
     report.upload_status = UploadStatus.VALIDATED  # type: ignore
     await db.flush()
 
+    # Create PartialDuplicate record if applicable
+    if partial_duplicate_info:
+        pd_record = PartialDuplicate(
+            report_id=report.report_id,
+            original_report_id=partial_duplicate_info["original_report_id"],
+            original_filename=partial_duplicate_info["original_filename"],
+            hamming_distance=partial_duplicate_info["hamming_distance"]
+        )
+        db.add(pd_record)
+        await db.flush()
+
     # 7. Create audit log
     await _create_audit_log(
         db, user_id, report.report_id, "FILE_UPLOAD", "SUCCESS",  # type: ignore
@@ -194,8 +254,10 @@ async def upload_report(
         "upload_status": report.upload_status.value,
         "file_size": len(file_bytes),
         "sha256_hash": sha256_hash,
+        "simhash": simhash_val,
         "validation_status": "PASSED",
-        "message": "File uploaded and validated successfully",
+        "duplicate_status": duplicate_status,
+        "message": "File uploaded and validated successfully" if duplicate_status == "UNIQUE" else "File uploaded but flagged as a partial duplicate",
     }
 
 
@@ -210,6 +272,7 @@ async def get_reports(
         joinedload(Report.uploader),
         selectinload(Report.report_metadata),
         selectinload(Report.validation),
+        selectinload(Report.partial_duplicate),
     )
 
     if search:

@@ -31,6 +31,16 @@ class FileValidationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PartialDuplicateOut(BaseModel):
+    duplicate_id: UUID
+    original_report_id: Optional[UUID] = None
+    original_filename: Optional[str] = None
+    hamming_distance: Optional[int] = None
+    detected_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class ReportOut(BaseModel):
     report_id: UUID
     uploaded_by: Optional[UUID] = None
@@ -41,12 +51,14 @@ class ReportOut(BaseModel):
     mime_type: str
     file_size: int
     sha256_hash: str
+    simhash: Optional[str] = None
     page_count: Optional[int] = None
     upload_status: str
     created_at: datetime
     updated_at: datetime
     metadata: Optional[ReportMetadataOut] = None
     validation: Optional[FileValidationOut] = None
+    partial_duplicate: Optional[PartialDuplicateOut] = None
 
     model_config = {"from_attributes": True}
 
@@ -63,12 +75,14 @@ class ReportOut(BaseModel):
             mime_type=report.mime_type,
             file_size=report.file_size,
             sha256_hash=report.sha256_hash,
+            simhash=report.simhash,
             page_count=report.page_count,
             upload_status=report.upload_status.value if hasattr(report.upload_status, 'value') else report.upload_status,
             created_at=report.created_at,
             updated_at=report.updated_at,
             metadata=report.report_metadata,
             validation=report.validation,
+            partial_duplicate=report.partial_duplicate,
         )
 
 
@@ -83,5 +97,7 @@ class UploadResponse(BaseModel):
     upload_status: str
     file_size: int
     sha256_hash: str
+    simhash: Optional[str] = None
     validation_status: str
+    duplicate_status: str
     message: str

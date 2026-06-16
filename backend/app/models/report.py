@@ -31,6 +31,7 @@ class Report(Base):
     mime_type = Column(String(100), nullable=False)
     file_size = Column(BigInteger, nullable=False)
     sha256_hash = Column(String(64), nullable=False, index=True)
+    simhash = Column(String(64), nullable=True, index=True)
     page_count = Column(Integer, nullable=True)
     upload_status = Column(
         Enum(UploadStatus, name="upload_status_enum", create_constraint=True),
@@ -59,6 +60,10 @@ class Report(Base):
     )
     storage = relationship(
         "FileStorage", back_populates="report", uselist=False, lazy="joined",
+        cascade="all, delete-orphan"
+    )
+    partial_duplicate = relationship(
+        "PartialDuplicate", foreign_keys="PartialDuplicate.report_id", back_populates="report", uselist=False, lazy="joined",
         cascade="all, delete-orphan"
     )
     audit_logs = relationship("AuditLog", back_populates="report", lazy="noload")
@@ -133,3 +138,29 @@ class FileStorage(Base):
 
     # Relationships
     report = relationship("Report", back_populates="storage")
+
+
+class PartialDuplicate(Base):
+    __tablename__ = "partial_duplicates"
+
+    duplicate_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    original_report_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.report_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    original_filename = Column(String(500), nullable=True)
+    hamming_distance = Column(Integer, nullable=True)
+    detected_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+
+    # Relationships
+    report = relationship("Report", foreign_keys=[report_id], back_populates="partial_duplicate")
+    original_report = relationship("Report", foreign_keys=[original_report_id])

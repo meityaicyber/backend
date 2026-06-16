@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -10,6 +10,7 @@ import {
   Button,
   Divider,
   Skeleton,
+  Alert,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -21,6 +22,7 @@ import {
   Storage,
   CheckCircle,
   Info,
+  Error as ErrorIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
@@ -108,6 +110,33 @@ function ReportDetailPage() {
         Back to Reports
       </Button>
 
+      {/* Partial Duplicate Warning */}
+      {report.partial_duplicate && (
+        <Alert
+          severity="warning"
+          icon={<ErrorIcon />}
+          sx={{ mb: 3, borderRadius: 2, alignItems: 'center' }}
+          action={
+            <Button
+              component={Link}
+              to={`/reports/${report.partial_duplicate.original_report_id}`}
+              color="warning"
+              size="small"
+              variant="outlined"
+            >
+              View Original
+            </Button>
+          }
+        >
+          <Typography variant="body2" fontWeight={600}>
+            Partial Duplicate Detected
+          </Typography>
+          <Typography variant="body2">
+            This file has been flagged as a partial duplicate of an existing report{report.partial_duplicate.original_filename ? ` (${report.partial_duplicate.original_filename})` : ''}.
+          </Typography>
+        </Alert>
+      )}
+
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Description sx={{ fontSize: 40, color: '#00D4FF' }} />
@@ -151,6 +180,9 @@ function ReportDetailPage() {
               <InfoRow icon={<Storage />} label="File Size" value={`${(report.file_size / 1024).toFixed(1)} KB`} />
               <InfoRow icon={<Info />} label="MIME Type" value={report.mime_type} />
               <InfoRow icon={<Fingerprint />} label="SHA256 Hash" value={report.sha256_hash} />
+              {report.simhash && (
+                <InfoRow icon={<Fingerprint />} label="SimHash Signature" value={report.simhash} />
+              )}
               {report.page_count && (
                 <InfoRow icon={<Description />} label="Page Count" value={report.page_count} />
               )}
@@ -210,6 +242,17 @@ function ReportDetailPage() {
                   label="Duplicate Status"
                   value={report.validation.duplicate_status}
                 />
+                {report.partial_duplicate && (
+                  <InfoRow
+                    icon={<Info />}
+                    label="Original File Link"
+                    value={
+                      <Link to={`/reports/${report.partial_duplicate.original_report_id}`} style={{ color: '#00D4FF', textDecoration: 'none' }}>
+                        {report.partial_duplicate.original_filename || 'View Original File'}
+                      </Link>
+                    }
+                  />
+                )}
                 <InfoRow
                   icon={<CheckCircle />}
                   label="Validation Status"
