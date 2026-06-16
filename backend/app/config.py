@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
     MAX_FILE_SIZE_MB: int = 50
 
+    # ClamAV Integration
+    CLAMAV_HOST: str = "clamav"
+    CLAMAV_PORT: int = 3310
+
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
 

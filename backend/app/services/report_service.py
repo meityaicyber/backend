@@ -19,6 +19,7 @@ from app.utils.file_utils import (
     _sanitize_for_json,
     MIME_TYPE_MAP,
 )
+from app.utils.clamav_utils import scan_file_bytes
 
 
 async def upload_report(
@@ -70,6 +71,50 @@ async def upload_report(
         )
         raise ValueError("A file with the same content (SHA256 hash) already exists")
 
+    # 3.5 Malware Scan
+    try:
+        is_clean, scan_message = await scan_file_bytes(file_bytes)
+    except Exception as e:
+        await _create_audit_log(
+            db, user_id, None, "FILE_UPLOAD", "FAILED",
+            {"reason": f"Malware scan failed: {str(e)}", "filename": filename}
+        )
+        await db.commit()
+        raise ValueError(f"Malware scan failed: {str(e)}")
+
+    if not is_clean:
+        report = Report(
+            uploaded_by=user_id,
+            original_filename=filename,
+            stored_filename="MALWARE_REJECTED",
+            file_extension=extension,
+            mime_type=detected_mime,
+            file_size=len(file_bytes),
+            sha256_hash=sha256_hash,
+            page_count=None,
+            upload_status=UploadStatus.REJECTED,
+        )
+        db.add(report)
+        await db.flush()
+
+        validation = FileValidation(
+            report_id=report.report_id,
+            file_type_valid=True,
+            malware_scan_status="FAILED",
+            duplicate_status="UNIQUE",
+            validation_status="FAILED",
+            validation_notes=scan_message,
+        )
+        db.add(validation)
+        await db.flush()
+
+        await _create_audit_log(
+            db, user_id, report.report_id, "FILE_UPLOAD", "FAILED",
+            {"reason": scan_message, "filename": filename}
+        )
+        await db.commit()
+        raise ValueError(scan_message)
+
     # 4. Save file to disk
     dir_path, stored_filename = get_storage_path(filename)
     file_path = save_file_to_disk(file_bytes, dir_path, stored_filename)
@@ -97,10 +142,10 @@ async def upload_report(
     validation = FileValidation(
         report_id=report.report_id,
         file_type_valid=True,
-        malware_scan_status="SKIPPED",
+        malware_scan_status="PASSED",
         duplicate_status="UNIQUE",
         validation_status="PASSED",
-        validation_notes="File passed extension and MIME type validation",
+        validation_notes="Clear from malware",
     )
     db.add(validation)
 

@@ -57,6 +57,13 @@ services:
     depends_on:
       - postgres
 
+  clamav:
+    image: clamav/clamav:latest
+    container_name: cyber-audit-clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+
 volumes:
   postgres_data:
     driver: local
