@@ -39,42 +39,16 @@ def compute_sha256(file_bytes: bytes) -> str:
     return hashlib.sha256(file_bytes).hexdigest()
 
 
-def get_storage_path(original_filename: str) -> Tuple[str, str]:
+def generate_object_name(original_filename: str) -> str:
     """
-    Generate storage path based on current date.
-    Returns (directory_path, stored_filename).
+    Generate MinIO object name based on current date.
+    Returns the object name.
     """
     now = datetime.now(timezone.utc)
-    dir_path = os.path.join(
-        settings.STORAGE_PATH,
-        str(now.year),
-        f"{now.month:02d}",
-    )
     # Create unique stored filename
     import uuid
     unique_id = uuid.uuid4().hex[:12]
-    stored_name = f"{unique_id}_{original_filename}"
-    return dir_path, stored_name
-
-
-def save_file_to_disk(file_bytes: bytes, dir_path: str, stored_filename: str) -> str:
-    """Save file bytes to disk. Returns full file path."""
-    Path(dir_path).mkdir(parents=True, exist_ok=True)
-    full_path = os.path.join(dir_path, stored_filename)
-    with open(full_path, "wb") as f:
-        f.write(file_bytes)
-    return full_path
-
-
-def delete_file_from_disk(file_path: str) -> bool:
-    """Delete a file from disk if it exists."""
-    try:
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            return True
-    except Exception:
-        pass
-    return False
+    return f"{now.year}/{now.month:02d}/{unique_id}_{original_filename}"
 
 
 def _sanitize_for_json(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -90,13 +64,14 @@ def _sanitize_for_json(data: Dict[str, Any]) -> Dict[str, Any]:
     return sanitized
 
 
-def extract_pdf_metadata(file_path: str) -> Dict[str, Any]:
-    """Extract metadata from a PDF file."""
+def extract_pdf_metadata(file_bytes: bytes) -> Dict[str, Any]:
+    """Extract metadata from a PDF file stream."""
     from PyPDF2 import PdfReader
+    import io
 
     metadata: Dict[str, Any] = {}
     try:
-        reader = PdfReader(file_path)
+        reader = PdfReader(io.BytesIO(file_bytes))
         info = reader.metadata
         metadata["page_count"] = len(reader.pages)
 
@@ -132,13 +107,14 @@ def _parse_pdf_date(date_str: Optional[str]) -> Optional[datetime]:
         return None
 
 
-def extract_docx_metadata(file_path: str) -> Dict[str, Any]:
-    """Extract metadata from a DOCX file."""
+def extract_docx_metadata(file_bytes: bytes) -> Dict[str, Any]:
+    """Extract metadata from a DOCX file stream."""
     from docx import Document
+    import io
 
     metadata: Dict[str, Any] = {}
     try:
-        doc = Document(file_path)
+        doc = Document(io.BytesIO(file_bytes))
         props = doc.core_properties
         metadata["title"] = props.title
         metadata["author"] = props.author
@@ -154,30 +130,29 @@ def extract_docx_metadata(file_path: str) -> Dict[str, Any]:
     return metadata
 
 
-def extract_txt_metadata(file_path: str) -> Dict[str, Any]:
-    """Extract basic metadata from a TXT file."""
+def extract_txt_metadata(file_bytes: bytes, filename: str) -> Dict[str, Any]:
+    """Extract basic metadata from a TXT file stream."""
     metadata: Dict[str, Any] = {
-        "title": os.path.basename(file_path),
+        "title": filename,
         "page_count": None,
     }
     try:
-        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-            line_count = content.count("\n") + 1
-            metadata["line_count"] = line_count
+        content = file_bytes.decode("utf-8", errors="replace")
+        line_count = content.count("\n") + 1
+        metadata["line_count"] = line_count
     except Exception:
         metadata["extraction_error"] = "Failed to read TXT file"
 
     return metadata
 
 
-def extract_metadata(file_path: str, extension: str) -> Dict[str, Any]:
+def extract_metadata(file_bytes: bytes, extension: str, filename: str) -> Dict[str, Any]:
     """Extract metadata based on file type."""
     if extension == ".pdf":
-        return extract_pdf_metadata(file_path)
+        return extract_pdf_metadata(file_bytes)
     elif extension == ".docx":
-        return extract_docx_metadata(file_path)
+        return extract_docx_metadata(file_bytes)
     elif extension == ".txt":
-        return extract_txt_metadata(file_path)
+        return extract_txt_metadata(file_bytes, filename)
     return {}
 

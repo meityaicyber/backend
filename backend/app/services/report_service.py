@@ -12,13 +12,12 @@ from app.utils.file_utils import (
     validate_extension,
     validate_mime_type,
     compute_sha256,
-    get_storage_path,
-    save_file_to_disk,
-    delete_file_from_disk,
+    generate_object_name,
     extract_metadata,
     _sanitize_for_json,
     MIME_TYPE_MAP,
 )
+from app.utils.minio_utils import upload_file, delete_file
 from app.utils.clamav_utils import scan_file_bytes
 from app.utils.simhash_utils import calculate_simhash, is_partial_duplicate
 
@@ -163,19 +162,26 @@ async def upload_report(
                 )
                 break
 
-    # 4. Save file to disk
-    dir_path, stored_filename = get_storage_path(filename)
-    file_path = save_file_to_disk(file_bytes, dir_path, stored_filename)
-
-    # 5. Extract metadata
-    file_metadata = extract_metadata(file_path, extension)
+    # 4. Extract metadata first (in-memory)
+    file_metadata = extract_metadata(file_bytes, extension, filename)
     page_count = file_metadata.get("page_count")
+
+    # 5. Upload file to MinIO
+    object_name = generate_object_name(filename)
+    try:
+        upload_file(object_name, file_bytes, content_type=detected_mime)
+    except Exception as e:
+        await _create_audit_log(
+            db, user_id, None, "FILE_UPLOAD", "FAILED",
+            {"reason": f"Storage upload failed: {str(e)}", "filename": filename}
+        )
+        raise ValueError(f"Failed to upload file to storage: {str(e)}")
 
     # 6. Create Report record
     report = Report(
         uploaded_by=user_id,
         original_filename=filename,
-        stored_filename=stored_filename,
+        stored_filename=object_name,
         file_extension=extension,
         mime_type=detected_mime,
         file_size=len(file_bytes),
@@ -215,7 +221,7 @@ async def upload_report(
     # Create FileStorage record
     file_storage = FileStorage(
         report_id=report.report_id,
-        encrypted_file_path=file_path,
+        encrypted_file_path=object_name,
         encryption_algorithm=None,
         encryption_key_id=None,
         checksum=sha256_hash,
@@ -325,7 +331,7 @@ async def delete_report(
 
     # Delete from storage
     if report.storage and report.storage.encrypted_file_path:
-        delete_file_from_disk(report.storage.encrypted_file_path)
+        delete_file(report.storage.encrypted_file_path)
 
     # Delete from database
     await db.delete(report)

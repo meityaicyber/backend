@@ -84,6 +84,9 @@ async def download_report(
     db: AsyncSession = Depends(get_db),
 ):
     """Download a report file."""
+    from fastapi.responses import StreamingResponse
+    from app.utils.minio_utils import get_file_stream
+
     report = await report_service.get_report_by_id(db, report_id)
     if not report:
         raise HTTPException(
@@ -91,23 +94,33 @@ async def download_report(
             detail="Report not found",
         )
 
-    if not report.storage:
+    if not report.storage or not report.storage.encrypted_file_path:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="File storage record not found",
         )
 
-    file_path = report.storage.encrypted_file_path
-    if not os.path.exists(file_path):
+    object_name = report.storage.encrypted_file_path
+    try:
+        minio_response = get_file_stream(object_name)
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found on disk",
+            detail=f"File not found in storage: {e}",
         )
 
-    return FileResponse(
-        path=file_path,
-        filename=report.original_filename,
+    def iterfile():
+        try:
+            for d in minio_response.stream(32 * 1024):
+                yield d
+        finally:
+            minio_response.close()
+            minio_response.release_conn()
+
+    return StreamingResponse(
+        iterfile(),
         media_type=report.mime_type,
+        headers={"Content-Disposition": f'attachment; filename="{report.original_filename}"'}
     )
 
 

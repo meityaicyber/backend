@@ -1,3 +1,9 @@
+volumes:
+  postgres_data:
+    driver: local
+  minio_data:
+    driver: local
+
 services:
   postgres:
     image: postgres:16
@@ -17,6 +23,37 @@ services:
       retries: 10
     restart: unless-stopped
 
+  minio:
+    image: minio/minio:latest
+    container_name: cyber-audit-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: cyber-audit-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} &&
+      mc mb myminio/${MINIO_BUCKET:-cyber-audit-reports} --ignore-existing
+      "
+
   backend:
     build:
       context: ./backend
@@ -25,12 +62,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:${DB_PASSWORD:-supersecretpassword}@postgres:5432/cyber_audit
       SECRET_KEY: ${SECRET_KEY:-change-this-to-a-secure-256-bit-key-in-production}
       FRONTEND_URL: http://localhost:3000
-    volumes:
-      - report_storage:/storage/reports
+      MINIO_URL: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-cyber-audit-reports}
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -63,9 +104,3 @@ services:
     restart: unless-stopped
     ports:
       - "3310:3310"
-
-volumes:
-  postgres_data:
-    driver: local
-  report_storage:
-    driver: local

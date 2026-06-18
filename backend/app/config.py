@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
     MAX_FILE_SIZE_MB: int = 50
 
+    # MinIO Storage
+    MINIO_URL: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "cyber-audit-reports"
+
     # ClamAV Integration
     CLAMAV_HOST: str = "clamav"
     CLAMAV_PORT: int = 3310

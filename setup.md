@@ -64,6 +64,13 @@ Open your browser and navigate to the following URLs:
   * **Password:** *(Whatever you set as `DB_PASSWORD` in your `.env` file, default is `supersecretpassword`)*
   * **Database:** `cyber_audit`
 
+### 🪣 4. MinIO Object Storage (Console)
+* **URL:** [http://localhost:9001](http://localhost:9001)
+* MinIO provides an S3-compatible object storage interface where all the uploaded PDF reports are stored.
+* **Login Credentials:**
+  * **Username:** `minioadmin` *(or your `MINIO_ACCESS_KEY`)*
+  * **Password:** `minioadmin` *(or your `MINIO_SECRET_KEY`)*
+
 ## Troubleshooting
 
 **Viewing Logs:**
