@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     MINIO_SECRET_KEY: str = "minioadmin"
     MINIO_BUCKET: str = "cyber-audit-reports"
 
+    # File Encryption
+    FILE_ENCRYPTION_KEY: str = "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="
+
     # ClamAV Integration
     CLAMAV_HOST: str = "clamav"
     CLAMAV_PORT: int = 3310

@@ -166,16 +166,18 @@ async def upload_report(
     file_metadata = extract_metadata(file_bytes, extension, filename)
     page_count = file_metadata.get("page_count")
 
-    # 5. Upload file to MinIO
+    # 5. Encrypt and Upload file to MinIO
     object_name = generate_object_name(filename)
     try:
-        upload_file(object_name, file_bytes, content_type=detected_mime)
+        from app.utils.encryption_utils import encrypt_file
+        encrypted_bytes = encrypt_file(file_bytes)
+        upload_file(object_name, encrypted_bytes, content_type=detected_mime)
     except Exception as e:
         await _create_audit_log(
             db, user_id, None, "FILE_UPLOAD", "FAILED",
-            {"reason": f"Storage upload failed: {str(e)}", "filename": filename}
+            {"reason": f"Storage upload/encryption failed: {str(e)}", "filename": filename}
         )
-        raise ValueError(f"Failed to upload file to storage: {str(e)}")
+        raise ValueError(f"Failed to encrypt and upload file to storage: {str(e)}")
 
     # 6. Create Report record
     report = Report(
@@ -222,8 +224,8 @@ async def upload_report(
     file_storage = FileStorage(
         report_id=report.report_id,
         encrypted_file_path=object_name,
-        encryption_algorithm=None,
-        encryption_key_id=None,
+        encryption_algorithm="Fernet",
+        encryption_key_id="v1",
         checksum=sha256_hash,
     )
     db.add(file_storage)

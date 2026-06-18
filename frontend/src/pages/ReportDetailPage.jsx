@@ -265,6 +265,13 @@ function ReportDetailPage() {
                     value={report.validation.validation_notes}
                   />
                 )}
+                {report.storage && report.storage.encryption_algorithm && (
+                  <InfoRow
+                    icon={<CheckCircle />}
+                    label="Storage Encryption"
+                    value={`Encrypted (${report.storage.encryption_algorithm})`}
+                  />
+                )}
               </CardContent>
             </Card>
           )}

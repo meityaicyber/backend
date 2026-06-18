@@ -41,6 +41,15 @@ class PartialDuplicateOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FileStorageOut(BaseModel):
+    storage_id: UUID
+    encrypted_file_path: str
+    encryption_algorithm: Optional[str] = None
+    encryption_key_id: Optional[str] = None
+    stored_at: datetime
+
+    model_config = {"from_attributes": True}
+
 class ReportOut(BaseModel):
     report_id: UUID
     uploaded_by: Optional[UUID] = None
@@ -59,6 +68,7 @@ class ReportOut(BaseModel):
     metadata: Optional[ReportMetadataOut] = None
     validation: Optional[FileValidationOut] = None
     partial_duplicate: Optional[PartialDuplicateOut] = None
+    storage: Optional[FileStorageOut] = None
 
     model_config = {"from_attributes": True}
 
@@ -83,6 +93,7 @@ class ReportOut(BaseModel):
             metadata=report.report_metadata,
             validation=report.validation,
             partial_duplicate=report.partial_duplicate,
+            storage=report.storage,
         )
 
 

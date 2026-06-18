@@ -111,8 +111,16 @@ async def download_report(
 
     def iterfile():
         try:
-            for d in minio_response.stream(32 * 1024):
-                yield d
+            encrypted_data = minio_response.read()
+            if report.storage.encryption_algorithm == "Fernet":
+                from app.utils.encryption_utils import decrypt_file
+                decrypted_data = decrypt_file(encrypted_data)
+                yield decrypted_data
+            else:
+                yield encrypted_data
+        except Exception as e:
+            # If decryption fails, we might want to log it, but for now just raise
+            raise HTTPException(status_code=500, detail=f"Failed to decrypt file: {e}")
         finally:
             minio_response.close()
             minio_response.release_conn()
