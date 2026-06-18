@@ -1,7 +1,7 @@
 import uuid
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/reports", tags=["Reports"])
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_report(
     file: UploadFile = File(...),
+    file_password: str = Form(None),
     current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -30,6 +31,29 @@ async def upload_report(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB",
         )
+
+    # Check password protection
+    from app.utils.file_utils import validate_extension
+    from app.utils.encryption_utils import is_pdf_encrypted, decrypt_pdf, is_docx_encrypted, decrypt_docx
+    
+    ext_valid, extension = validate_extension(file.filename)
+    if ext_valid:
+        if extension == '.pdf':
+            if is_pdf_encrypted(file_bytes):
+                if not file_password:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
+                try:
+                    file_bytes = decrypt_pdf(file_bytes, file_password)
+                except Exception:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
+        elif extension == '.docx':
+            if is_docx_encrypted(file_bytes):
+                if not file_password:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
+                try:
+                    file_bytes = decrypt_docx(file_bytes, file_password)
+                except Exception:
+                    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
 
     try:
         result = await report_service.upload_report(

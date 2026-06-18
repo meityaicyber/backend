@@ -10,6 +10,12 @@ import {
   Chip,
   Paper,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  TextField,
+  DialogActions,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -17,6 +23,7 @@ import {
   CheckCircle,
   Error as ErrorIcon,
   Description,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
@@ -27,6 +34,10 @@ function UploadReportPage() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+
+  const [passwordRequired, setPasswordRequired] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [pendingFile, setPendingFile] = useState(null);
 
   const onDrop = useCallback(
     async (acceptedFiles) => {
@@ -53,15 +64,67 @@ function UploadReportPage() {
         setResult(response.data);
         enqueueSnackbar('File uploaded successfully!', { variant: 'success' });
       } catch (err) {
-        const msg = err.response?.data?.detail || 'Upload failed. Please try again.';
-        setError(msg);
-        enqueueSnackbar(msg, { variant: 'error' });
+        const msg = err.response?.data?.detail;
+        if (msg === 'PASSWORD_REQUIRED') {
+          setPasswordRequired(true);
+          setPendingFile(file);
+        } else {
+          setError(msg || 'Upload failed. Please try again.');
+          enqueueSnackbar(msg || 'Upload failed', { variant: 'error' });
+        }
       } finally {
         setUploading(false);
       }
     },
     [enqueueSnackbar]
   );
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordInput || !pendingFile) return;
+
+    setError('');
+    setUploading(true);
+    setProgress(0);
+
+    const formData = new FormData();
+    formData.append('file', pendingFile);
+    formData.append('file_password', passwordInput);
+
+    try {
+      const response = await api.post('/api/reports/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          const pct = Math.round((e.loaded * 100) / (e.total || 1));
+          setProgress(pct);
+        },
+      });
+
+      setResult(response.data);
+      enqueueSnackbar('File unlocked and uploaded successfully!', { variant: 'success' });
+      setPasswordRequired(false);
+      setPasswordInput('');
+      setPendingFile(null);
+    } catch (err) {
+      const msg = err.response?.data?.detail;
+      if (msg === 'INVALID_PASSWORD') {
+        setError('Incorrect password. Please try again.');
+      } else {
+        setError(msg || 'Upload failed. Please try again.');
+        setPasswordRequired(false);
+        setPasswordInput('');
+        setPendingFile(null);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePasswordCancel = () => {
+    setPasswordRequired(false);
+    setPasswordInput('');
+    setPendingFile(null);
+    setError('Upload cancelled due to missing password.');
+  };
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop,
@@ -251,6 +314,36 @@ function UploadReportPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={passwordRequired} onClose={handlePasswordCancel} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LockIcon color="primary" /> Password Required
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This file is encrypted. Please enter the password to unlock and upload it.
+          </DialogContentText>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="File Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+            error={error === 'Incorrect password. Please try again.'}
+            helperText={error === 'Incorrect password. Please try again.' ? error : ''}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handlePasswordCancel} color="inherit">Cancel</Button>
+          <Button onClick={handlePasswordSubmit} variant="contained" disabled={!passwordInput || uploading}>
+            {uploading ? 'Unlocking...' : 'Unlock & Upload'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
