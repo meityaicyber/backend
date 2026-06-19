@@ -27,6 +27,7 @@ async def upload_report(
     file_bytes: bytes,
     filename: str,
     user_id: uuid.UUID,
+    agency_id: uuid.UUID,
 ) -> Dict[str, Any]:
     """
     Full upload workflow:
@@ -191,6 +192,7 @@ async def upload_report(
         simhash=simhash_val,
         page_count=page_count,
         upload_status=UploadStatus.UPLOADED,
+        agency_id=agency_id,
     )
     db.add(report)
     await db.flush()
@@ -278,6 +280,7 @@ async def get_reports(
     """Get paginated list of reports with optional search."""
     query = select(Report).options(
         joinedload(Report.uploader),
+        joinedload(Report.agency),
         selectinload(Report.report_metadata),
         selectinload(Report.validation),
         selectinload(Report.partial_duplicate),
@@ -314,6 +317,7 @@ async def get_report_by_id(
         select(Report)
         .options(
             joinedload(Report.uploader),
+            joinedload(Report.agency),
             selectinload(Report.report_metadata),
             selectinload(Report.validation),
             selectinload(Report.storage),

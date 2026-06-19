@@ -17,6 +17,7 @@ router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_report(
+    agency_id: uuid.UUID = Form(...),
     file: UploadFile = File(...),
     file_password: str = Form(None),
     current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
@@ -57,7 +58,7 @@ async def upload_report(
 
     try:
         result = await report_service.upload_report(
-            db, file_bytes, file.filename, current_user.user_id
+            db, file_bytes, file.filename, current_user.user_id, agency_id
         )
         return UploadResponse(**result)
     except ValueError as e:

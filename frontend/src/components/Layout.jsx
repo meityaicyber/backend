@@ -29,6 +29,7 @@ import {
   Person,
   Logout,
   Shield,
+  Business,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -39,6 +40,7 @@ const navItems = [
   { text: 'Upload Report', icon: <CloudUpload />, path: '/upload' },
   { text: 'Reports', icon: <Description />, path: '/reports' },
   { text: 'User Management', icon: <People />, path: '/users', adminOnly: true },
+  { text: 'Agency Management', icon: <Business />, path: '/agencies', adminOnly: true },
   { text: 'Audit Logs', icon: <Security />, path: '/audit-logs', adminOnly: true },
   { text: 'Profile', icon: <Person />, path: '/profile' },
 ];

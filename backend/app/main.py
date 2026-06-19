@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.routers import auth, users, reports, audit_logs
+from app.routers import auth, users, reports, audit_logs, agencies
 from app.services.auth_service import seed_roles_and_admin
 
 # Import all models so Alembic can discover them
@@ -52,6 +52,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(reports.router)
 app.include_router(audit_logs.router)
+app.include_router(agencies.router)
 
 
 @app.exception_handler(Exception)

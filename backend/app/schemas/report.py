@@ -3,6 +3,7 @@ from typing import Optional, Any, Dict, List
 from datetime import datetime
 from uuid import UUID
 
+from app.schemas.agency import AgencyOut
 
 class ReportMetadataOut(BaseModel):
     metadata_id: UUID
@@ -69,6 +70,7 @@ class ReportOut(BaseModel):
     validation: Optional[FileValidationOut] = None
     partial_duplicate: Optional[PartialDuplicateOut] = None
     storage: Optional[FileStorageOut] = None
+    agency: Optional[AgencyOut] = None
 
     model_config = {"from_attributes": True}
 
@@ -94,6 +96,7 @@ class ReportOut(BaseModel):
             validation=report.validation,
             partial_duplicate=report.partial_duplicate,
             storage=report.storage,
+            agency=report.agency,
         )
 
 

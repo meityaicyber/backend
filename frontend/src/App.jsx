@@ -13,6 +13,7 @@ import UploadReportPage from './pages/UploadReportPage';
 import ReportsPage from './pages/ReportsPage';
 import ReportDetailPage from './pages/ReportDetailPage';
 import UserManagementPage from './pages/UserManagementPage';
+import AgencyManagementPage from './pages/AgencyManagementPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
 
@@ -51,6 +52,14 @@ function App() {
             element={
               <RoleGuard roles={['ADMIN']}>
                 <UserManagementPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/agencies"
+            element={
+              <RoleGuard roles={['ADMIN']}>
+                <AgencyManagementPage />
               </RoleGuard>
             }
           />

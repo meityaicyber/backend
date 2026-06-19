@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
   Box,
@@ -16,6 +16,10 @@ import {
   DialogContentText,
   TextField,
   DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   CloudUpload,
@@ -39,8 +43,27 @@ function UploadReportPage() {
   const [passwordInput, setPasswordInput] = useState('');
   const [pendingFile, setPendingFile] = useState(null);
 
+  const [agencies, setAgencies] = useState([]);
+  const [selectedAgency, setSelectedAgency] = useState('');
+
+  useEffect(() => {
+    const fetchAgencies = async () => {
+      try {
+        const response = await api.get('/api/agencies', { params: { limit: 100 } });
+        setAgencies(response.data.agencies || []);
+      } catch (err) {
+        enqueueSnackbar('Failed to load agencies', { variant: 'error' });
+      }
+    };
+    fetchAgencies();
+  }, [enqueueSnackbar]);
+
   const onDrop = useCallback(
     async (acceptedFiles) => {
+      if (!selectedAgency) {
+        enqueueSnackbar('Please select an agency first', { variant: 'warning' });
+        return;
+      }
       if (acceptedFiles.length === 0) return;
 
       const file = acceptedFiles[0];
@@ -51,6 +74,7 @@ function UploadReportPage() {
 
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('agency_id', selectedAgency);
 
       try {
         const response = await api.post('/api/reports/upload', formData, {
@@ -76,7 +100,7 @@ function UploadReportPage() {
         setUploading(false);
       }
     },
-    [enqueueSnackbar]
+    [enqueueSnackbar, selectedAgency]
   );
 
   const handlePasswordSubmit = async () => {
@@ -89,6 +113,7 @@ function UploadReportPage() {
     const formData = new FormData();
     formData.append('file', pendingFile);
     formData.append('file_password', passwordInput);
+    formData.append('agency_id', selectedAgency);
 
     try {
       const response = await api.post('/api/reports/upload', formData, {
@@ -152,6 +177,25 @@ function UploadReportPage() {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
         Upload PDF, DOCX, or TXT files for processing and validation
       </Typography>
+
+      <Box sx={{ mb: 4, maxWidth: 400 }}>
+        <FormControl fullWidth variant="outlined">
+          <InputLabel id="agency-select-label">Select Agency *</InputLabel>
+          <Select
+            labelId="agency-select-label"
+            value={selectedAgency}
+            onChange={(e) => setSelectedAgency(e.target.value)}
+            label="Select Agency *"
+            disabled={uploading}
+          >
+            {agencies.map((agency) => (
+              <MenuItem key={agency.agency_id} value={agency.agency_id}>
+                {agency.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
 
       {/* Dropzone */}
       <Card className="fade-in-up">

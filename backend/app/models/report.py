@@ -48,8 +48,13 @@ class Report(Base):
         nullable=False,
     )
 
+    agency_id = Column(
+        UUID(as_uuid=True), ForeignKey("agencies.agency_id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
     uploader = relationship("User", back_populates="reports", lazy="joined")
+    agency = relationship("Agency", back_populates="reports", lazy="joined")
     report_metadata = relationship(
         "ReportMetadata", back_populates="report", uselist=False, lazy="joined",
         cascade="all, delete-orphan"
