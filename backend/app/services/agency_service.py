@@ -1,7 +1,7 @@
 import uuid
 from typing import Optional, List, Tuple
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agency import Agency
@@ -12,14 +12,12 @@ async def get_agencies(
     db: AsyncSession, skip: int = 0, limit: int = 50
 ) -> Tuple[List[Agency], int]:
     """Get paginated list of agencies."""
-    # Count total
     count_result = await db.execute(select(func.count(Agency.agency_id)))
     total = count_result.scalar() or 0
 
-    # Fetch agencies
     result = await db.execute(
         select(Agency)
-        .order_by(Agency.name)
+        .order_by(Agency.agency_name)
         .offset(skip)
         .limit(limit)
     )
@@ -38,17 +36,18 @@ async def get_agency_by_id(db: AsyncSession, agency_id: uuid.UUID) -> Optional[A
 
 async def create_agency(db: AsyncSession, agency_in: AgencyCreate) -> Agency:
     """Create a new agency."""
-    # Check existing
-    existing = await db.execute(
-        select(Agency).where(Agency.name == agency_in.name)
-    )
+    # Check existing agency_code or registration_number
+    conditions = [Agency.agency_code == agency_in.agency_code]
+    if agency_in.registration_number:
+        conditions.append(Agency.registration_number == agency_in.registration_number)
+        
+    existing = await db.execute(select(Agency).where(or_(*conditions)))
     if existing.scalar_one_or_none():
-        raise ValueError("Agency with this name already exists")
+        raise ValueError("Agency with this code or registration number already exists")
 
-    agency = Agency(
-        name=agency_in.name,
-        description=agency_in.description
-    )
+    agency_data = agency_in.model_dump()
+    agency = Agency(**agency_data)
+    
     db.add(agency)
     await db.flush()
     return agency
@@ -62,17 +61,19 @@ async def update_agency(
     if not agency:
         return None
 
-    if agency_in.name is not None:
-        # Check uniqueness
+    update_data = agency_in.model_dump(exclude_unset=True)
+    
+    if 'registration_number' in update_data and update_data['registration_number']:
         existing = await db.execute(
-            select(Agency).where(Agency.name == agency_in.name, Agency.agency_id != agency_id)
+            select(Agency)
+            .where(Agency.registration_number == update_data['registration_number'])
+            .where(Agency.agency_id != agency_id)
         )
         if existing.scalar_one_or_none():
-            raise ValueError("Agency with this name already exists")
-        agency.name = agency_in.name
+            raise ValueError("Agency with this registration number already exists")
 
-    if agency_in.description is not None:
-        agency.description = agency_in.description
+    for field, value in update_data.items():
+        setattr(agency, field, value)
 
     await db.flush()
     return agency
@@ -87,3 +88,12 @@ async def delete_agency(db: AsyncSession, agency_id: uuid.UUID) -> bool:
     await db.execute(delete(Agency).where(Agency.agency_id == agency_id))
     await db.flush()
     return True
+
+async def get_agency_stats(db: AsyncSession, agency_id: uuid.UUID) -> dict:
+    """Get statistics for an agency, such as total associated reports."""
+    from app.models.report import Report
+    result = await db.execute(
+        select(func.count(Report.report_id)).where(Report.agency_id == agency_id)
+    )
+    total_reports = result.scalar() or 0
+    return {"total_reports": total_reports}

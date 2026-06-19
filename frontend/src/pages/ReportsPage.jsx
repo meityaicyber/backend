@@ -150,6 +150,7 @@ function ReportsPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>File</TableCell>
+                  <TableCell>Agency</TableCell>
                   <TableCell>Version</TableCell>
                   <TableCell>Uploader</TableCell>
                   <TableCell>Size</TableCell>
@@ -162,7 +163,7 @@ function ReportsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 7 }).map((_, j) => (
+                      {Array.from({ length: 8 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton variant="text" />
                         </TableCell>
@@ -171,7 +172,7 @@ function ReportsPage() {
                   ))
                 ) : reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
                       <Description sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                       <Typography color="text.secondary">No reports found</Typography>
                     </TableCell>
@@ -212,6 +213,11 @@ function ReportsPage() {
                             </Box>
                           </Box>
                         </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" color="text.secondary">
+                          {report.agency?.agency_name || '—'}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         {report.partial_duplicate ? (

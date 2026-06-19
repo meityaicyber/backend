@@ -7,7 +7,7 @@ from typing import List
 from app.database import get_db
 from app.dependencies import get_current_user, require_roles
 from app.models.user import User
-from app.schemas.agency import AgencyCreate, AgencyUpdate, AgencyOut, AgencyListOut
+from app.schemas.agency import AgencyCreate, AgencyUpdate, AgencyOut, AgencyListOut, AgencyStatsOut
 from app.services import agency_service
 
 router = APIRouter(prefix="/api/agencies", tags=["Agencies"])
@@ -51,6 +51,19 @@ async def get_agency(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agency not found")
     return agency
 
+
+@router.get("/{agency_id}/stats", response_model=AgencyStatsOut)
+async def get_agency_stats(
+    agency_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get statistics for a single agency."""
+    agency = await agency_service.get_agency_by_id(db, agency_id)
+    if not agency:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agency not found")
+    stats = await agency_service.get_agency_stats(db, agency_id)
+    return stats
 
 @router.put("/{agency_id}", response_model=AgencyOut)
 async def update_agency(

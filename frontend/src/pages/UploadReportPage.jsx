@@ -190,7 +190,7 @@ function UploadReportPage() {
           >
             {agencies.map((agency) => (
               <MenuItem key={agency.agency_id} value={agency.agency_id}>
-                {agency.name}
+                {agency.agency_name}
               </MenuItem>
             ))}
           </Select>

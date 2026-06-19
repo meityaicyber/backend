@@ -18,3 +18,4 @@ simhash==2.1.2
 minio==7.2.7
 cryptography==43.0.1
 msoffcrypto-tool==5.0.1
+email-validator==2.1.1
