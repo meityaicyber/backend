@@ -2,9 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies for python-magic
+# Install system dependencies for python-magic and file conversion
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libmagic1 curl && \
+    apt-get install -y --no-install-recommends libmagic1 curl libreoffice-writer-nogui && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies

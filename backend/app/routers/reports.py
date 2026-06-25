@@ -141,10 +141,17 @@ async def download_report(
     else:
         file_data = encrypted_data
 
+    # All stored files are PDF (converted on upload)
+    download_filename = report.original_filename
+    if not download_filename.lower().endswith(".pdf"):
+        # Replace the original extension with .pdf for the download name
+        base_name = os.path.splitext(download_filename)[0]
+        download_filename = f"{base_name}.pdf"
+
     return Response(
         content=file_data,
-        media_type=report.mime_type,
-        headers={"Content-Disposition": f'attachment; filename="{report.original_filename}"'}
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{download_filename}"'}
     )
 
 

@@ -39,16 +39,15 @@ def compute_sha256(file_bytes: bytes) -> str:
     return hashlib.sha256(file_bytes).hexdigest()
 
 
-def generate_object_name(original_filename: str) -> str:
+def generate_object_name(sha256_hash: str, extension: str) -> str:
     """
-    Generate a storage object name based on current date.
-    Returns the object name.
+    Generate a storage object name using the file's SHA256 hash.
+    The hash makes the name secure (no original filename exposed)
+    and unique (content-based naming).
+    Returns: e.g. '2026/06/a1b2c3d4e5f6...abc.pdf'
     """
     now = datetime.now(timezone.utc)
-    # Create unique stored filename
-    import uuid
-    unique_id = uuid.uuid4().hex[:12]
-    return f"{now.year}/{now.month:02d}/{unique_id}_{original_filename}"
+    return f"{now.year}/{now.month:02d}/{sha256_hash}{extension}"
 
 
 def _sanitize_for_json(data: Dict[str, Any]) -> Dict[str, Any]:

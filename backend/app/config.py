@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # CORS
     FRONTEND_URL: str = "http://localhost:3000"
 
+    # AI Pipeline Service
+    AI_PIPELINE_URL: str = "http://ai-pipeline:8001"
+
     # Admin defaults
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "Admin@123"

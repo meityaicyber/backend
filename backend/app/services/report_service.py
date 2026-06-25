@@ -60,7 +60,24 @@ async def upload_report(
             f"File content type '{detected_mime}' does not match extension '{extension}'"
         )
 
-    # 3. Compute SHA256 and check duplicates
+    # 2.5 Convert to PDF immediately (system only sees PDF from here on)
+    from app.utils.pdf_converter import convert_to_pdf
+    import os
+    try:
+        file_bytes = convert_to_pdf(file_bytes, extension, filename)
+        extension = ".pdf"
+        detected_mime = "application/pdf"
+        # Rename filename to .pdf so the DB and UI only see PDF
+        base_name = os.path.splitext(filename)[0]
+        filename = f"{base_name}.pdf"
+    except ValueError as e:
+        await _create_audit_log(
+            db, user_id, None, "FILE_UPLOAD", "FAILED",
+            {"reason": f"PDF conversion failed: {str(e)}", "filename": filename}
+        )
+        raise ValueError(f"PDF conversion failed: {str(e)}")
+
+    # 3. Compute SHA256 and check duplicates (on the PDF)
     sha256_hash = compute_sha256(file_bytes)
     existing = await db.execute(
         select(Report).where(Report.sha256_hash == sha256_hash)
@@ -163,12 +180,12 @@ async def upload_report(
                 )
                 break
 
-    # 4. Extract metadata first (in-memory)
+    # 4. Extract metadata first (in-memory) from the PDF
     file_metadata = extract_metadata(file_bytes, extension, filename)
     page_count = file_metadata.get("page_count")
 
-    # 5. Encrypt and Upload file to SeaweedFS
-    object_name = generate_object_name(filename)
+    # 5. Encrypt and Upload converted PDF to SeaweedFS
+    object_name = generate_object_name(sha256_hash, extension)
     try:
         from app.utils.encryption_utils import encrypt_file
         encrypted_bytes = encrypt_file(file_bytes)

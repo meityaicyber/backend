@@ -18,6 +18,16 @@ import {
   InputAdornment,
   Tooltip,
   Skeleton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  CircularProgress,
+  Collapse,
+  Divider,
+  LinearProgress,
 } from '@mui/material';
 import {
   Search,
@@ -25,6 +35,17 @@ import {
   Download,
   Delete,
   Description,
+  RocketLaunch,
+  CheckCircle,
+  HourglassTop,
+  Close,
+  ExpandMore,
+  ExpandLess,
+  Shield,
+  BugReport,
+  Security,
+  Warning,
+  TipsAndUpdates,
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import { useAuth } from '../contexts/AuthContext';
@@ -43,6 +64,428 @@ const extIcon = {
   '.txt': '📃',
 };
 
+const severityColor = {
+  CRITICAL: '#FF1744',
+  HIGH: '#FF9100',
+  MEDIUM: '#FFD600',
+  LOW: '#00E676',
+};
+
+const riskLevelGradient = {
+  CRITICAL: 'linear-gradient(135deg, #FF1744 0%, #D50000 100%)',
+  HIGH: 'linear-gradient(135deg, #FF9100 0%, #FF6D00 100%)',
+  MEDIUM: 'linear-gradient(135deg, #FFD600 0%, #FFAB00 100%)',
+  LOW: 'linear-gradient(135deg, #00E676 0%, #00C853 100%)',
+};
+
+/* ──────────── Pipeline Results Dialog ──────────── */
+function PipelineResultsDialog({ open, onClose, results, reportName }) {
+  const [expandedSections, setExpandedSections] = useState({
+    vulnerabilities: true,
+    compliance: false,
+    recommendations: false,
+  });
+
+  if (!results) return null;
+
+  const toggleSection = (section) =>
+    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
+
+  const risk = results.risk_assessment || {};
+  const vulns = results.vulnerabilities || {};
+  const compliance = results.compliance || {};
+  const recommendations = results.recommendations || [];
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          background: 'linear-gradient(145deg, rgba(17,25,40,0.97) 0%, rgba(12,17,29,0.99) 100%)',
+          border: '1px solid rgba(0,212,255,0.12)',
+          backdropFilter: 'blur(20px)',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          pb: 1,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Security sx={{ color: '#00D4FF', fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              AI Pipeline Results
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {reportName}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'text.secondary' }}>
+          <Close />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent sx={{ pt: 1 }}>
+        {/* ── Risk Score Card ── */}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            mb: 3,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Box
+            sx={{
+              flex: '1 1 200px',
+              p: 2.5,
+              borderRadius: 2.5,
+              background: riskLevelGradient[risk.risk_level] || riskLevelGradient.MEDIUM,
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -20,
+                right: -20,
+                width: 100,
+                height: 100,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.1)',
+              }}
+            />
+            <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
+              Overall Risk Score
+            </Typography>
+            <Typography variant="h3" fontWeight={800} sx={{ color: '#fff' }}>
+              {risk.overall_risk_score}
+            </Typography>
+            <Chip
+              label={risk.risk_level}
+              size="small"
+              sx={{
+                mt: 0.5,
+                fontWeight: 700,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: '#fff',
+                fontSize: '0.7rem',
+              }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              flex: '1 1 200px',
+              p: 2.5,
+              borderRadius: 2.5,
+              background: 'rgba(0,212,255,0.06)',
+              border: '1px solid rgba(0,212,255,0.1)',
+            }}
+          >
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Vulnerabilities Summary
+            </Typography>
+            <Typography variant="h3" fontWeight={800} sx={{ color: '#00D4FF' }}>
+              {vulns.total_found || 0}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+              {vulns.critical > 0 && (
+                <Chip label={`${vulns.critical} Critical`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,23,68,0.15)', color: '#FF1744' }} />
+              )}
+              {vulns.high > 0 && (
+                <Chip label={`${vulns.high} High`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,145,0,0.15)', color: '#FF9100' }} />
+              )}
+              {vulns.medium > 0 && (
+                <Chip label={`${vulns.medium} Medium`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,214,0,0.15)', color: '#FFD600' }} />
+              )}
+              {vulns.low > 0 && (
+                <Chip label={`${vulns.low} Low`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(0,230,118,0.15)', color: '#00E676' }} />
+              )}
+            </Box>
+          </Box>
+
+          <Box
+            sx={{
+              flex: '1 1 140px',
+              p: 2.5,
+              borderRadius: 2.5,
+              background: 'rgba(0,230,118,0.06)',
+              border: '1px solid rgba(0,230,118,0.1)',
+            }}
+          >
+            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
+              Confidence
+            </Typography>
+            <Typography variant="h3" fontWeight={800} sx={{ color: '#00E676' }}>
+              {Math.round((risk.confidence_score || 0) * 100)}%
+            </Typography>
+            <LinearProgress
+              variant="determinate"
+              value={(risk.confidence_score || 0) * 100}
+              sx={{
+                mt: 1,
+                height: 6,
+                borderRadius: 3,
+                bgcolor: 'rgba(0,230,118,0.1)',
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 3,
+                  background: 'linear-gradient(90deg, #00E676, #00C853)',
+                },
+              }}
+            />
+          </Box>
+        </Box>
+
+        {/* ── Vulnerabilities Details ── */}
+        <Box sx={{ mb: 2 }}>
+          <Box
+            onClick={() => toggleSection('vulnerabilities')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              p: 1.5,
+              borderRadius: 2,
+              '&:hover': { bgcolor: 'rgba(0,212,255,0.04)' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BugReport sx={{ color: '#FF9100', fontSize: 20 }} />
+              <Typography variant="subtitle1" fontWeight={700}>
+                Vulnerability Details
+              </Typography>
+            </Box>
+            {expandedSections.vulnerabilities ? <ExpandLess /> : <ExpandMore />}
+          </Box>
+          <Collapse in={expandedSections.vulnerabilities}>
+            <Box sx={{ pl: 1, pr: 1 }}>
+              {(vulns.details || []).map((v, i) => (
+                <Box
+                  key={v.id || i}
+                  sx={{
+                    p: 2,
+                    mb: 1,
+                    borderRadius: 2,
+                    border: `1px solid ${severityColor[v.severity]}22`,
+                    bgcolor: `${severityColor[v.severity]}08`,
+                  }}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={v.severity}
+                        size="small"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '0.6rem',
+                          bgcolor: `${severityColor[v.severity]}20`,
+                          color: severityColor[v.severity],
+                          minWidth: 70,
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                        {v.id}
+                      </Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Confidence: {Math.round((v.confidence || 0) * 100)}%
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
+                    {v.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    📍 {v.location}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </Collapse>
+        </Box>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.04)', my: 1 }} />
+
+        {/* ── Compliance Results ── */}
+        <Box sx={{ mb: 2 }}>
+          <Box
+            onClick={() => toggleSection('compliance')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              p: 1.5,
+              borderRadius: 2,
+              '&:hover': { bgcolor: 'rgba(0,212,255,0.04)' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Shield sx={{ color: '#00D4FF', fontSize: 20 }} />
+              <Typography variant="subtitle1" fontWeight={700}>
+                Compliance Results
+              </Typography>
+            </Box>
+            {expandedSections.compliance ? <ExpandLess /> : <ExpandMore />}
+          </Box>
+          <Collapse in={expandedSections.compliance}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, p: 1 }}>
+              {Object.entries(compliance).map(([framework, data]) => {
+                const statusColorMap = {
+                  COMPLIANT: '#00E676',
+                  PARTIALLY_COMPLIANT: '#FFD600',
+                  NON_COMPLIANT: '#FF1744',
+                };
+                const color = statusColorMap[data.status] || '#aaa';
+                return (
+                  <Box
+                    key={framework}
+                    sx={{
+                      flex: '1 1 180px',
+                      p: 2,
+                      borderRadius: 2,
+                      border: `1px solid ${color}22`,
+                      bgcolor: `${color}06`,
+                    }}
+                  >
+                    <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
+                      {framework}
+                    </Typography>
+                    <Chip
+                      label={data.status.replace(/_/g, ' ')}
+                      size="small"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.6rem',
+                        bgcolor: `${color}18`,
+                        color,
+                        mb: 1,
+                      }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Score: <b>{data.score}</b>
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Gaps: <b>{data.gaps_identified}</b>
+                      </Typography>
+                    </Box>
+                    <LinearProgress
+                      variant="determinate"
+                      value={data.score}
+                      sx={{
+                        mt: 1,
+                        height: 4,
+                        borderRadius: 2,
+                        bgcolor: `${color}10`,
+                        '& .MuiLinearProgress-bar': {
+                          borderRadius: 2,
+                          bgcolor: color,
+                        },
+                      }}
+                    />
+                  </Box>
+                );
+              })}
+            </Box>
+          </Collapse>
+        </Box>
+
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.04)', my: 1 }} />
+
+        {/* ── Recommendations ── */}
+        <Box>
+          <Box
+            onClick={() => toggleSection('recommendations')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              p: 1.5,
+              borderRadius: 2,
+              '&:hover': { bgcolor: 'rgba(0,212,255,0.04)' },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <TipsAndUpdates sx={{ color: '#FFD600', fontSize: 20 }} />
+              <Typography variant="subtitle1" fontWeight={700}>
+                Recommendations
+              </Typography>
+            </Box>
+            {expandedSections.recommendations ? <ExpandLess /> : <ExpandMore />}
+          </Box>
+          <Collapse in={expandedSections.recommendations}>
+            <Box sx={{ pl: 1, pr: 1 }}>
+              {recommendations.map((rec, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 1.5,
+                    p: 1.5,
+                    mb: 0.5,
+                    borderRadius: 2,
+                    '&:hover': { bgcolor: 'rgba(255,214,0,0.04)' },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      minWidth: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #FFD600, #FFAB00)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      color: '#000',
+                      mt: 0.2,
+                    }}
+                  >
+                    {i + 1}
+                  </Box>
+                  <Typography variant="body2">{rec}</Typography>
+                </Box>
+              ))}
+            </Box>
+          </Collapse>
+        </Box>
+
+        {/* ── Pipeline Metadata ── */}
+        <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            <Typography variant="caption" color="text.secondary">
+              Pipeline ID: <code>{results.pipeline_id}</code>
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Processed: {new Date(results.analysis_timestamp).toLocaleString()}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Duration: {results.processing_time_seconds}s
+            </Typography>
+          </Box>
+        </Box>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ──────────── Reports Page ──────────── */
 function ReportsPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
@@ -54,6 +497,12 @@ function ReportsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch] = useState('');
   const [searchDebounce, setSearchDebounce] = useState('');
+
+  // Pipeline state
+  const [pipelineStatus, setPipelineStatus] = useState({}); // { [reportId]: 'idle' | 'processing' | 'completed' | 'error' }
+  const [pipelineResults, setPipelineResults] = useState({}); // { [reportId]: {...results} }
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, report: null });
+  const [resultsDialog, setResultsDialog] = useState({ open: false, reportId: null, reportName: '' });
 
   useEffect(() => {
     const timer = setTimeout(() => setSearchDebounce(search), 400);
@@ -112,6 +561,116 @@ function ReportsPage() {
     }
   };
 
+  /* ── Pipeline Handlers ── */
+  const openConfirmDialog = (report) => {
+    setConfirmDialog({ open: true, report });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog({ open: false, report: null });
+  };
+
+  const handleRunPipeline = async () => {
+    const report = confirmDialog.report;
+    if (!report) return;
+    closeConfirmDialog();
+
+    const reportId = report.report_id;
+    setPipelineStatus((prev) => ({ ...prev, [reportId]: 'processing' }));
+
+    try {
+      const response = await api.post(`/api/reports/${reportId}/run-pipeline`);
+      setPipelineResults((prev) => ({ ...prev, [reportId]: response.data }));
+      setPipelineStatus((prev) => ({ ...prev, [reportId]: 'completed' }));
+      enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
+    } catch (err) {
+      setPipelineStatus((prev) => ({ ...prev, [reportId]: 'error' }));
+      const detail = err.response?.data?.detail || 'Pipeline failed';
+      enqueueSnackbar(`Pipeline error: ${detail}`, { variant: 'error' });
+    }
+  };
+
+  const openResultsDialog = (reportId, reportName) => {
+    setResultsDialog({ open: true, reportId, reportName });
+  };
+
+  const closeResultsDialog = () => {
+    setResultsDialog({ open: false, reportId: null, reportName: '' });
+  };
+
+  const renderPipelineChip = (report) => {
+    const status = pipelineStatus[report.report_id];
+
+    if (status === 'processing') {
+      return (
+        <Chip
+          icon={<HourglassTop sx={{ fontSize: 14, animation: 'spin 1.5s linear infinite', '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } } }} />}
+          label="Processing"
+          size="small"
+          sx={{
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            bgcolor: 'rgba(0,212,255,0.12)',
+            color: '#00D4FF',
+            border: '1px solid rgba(0,212,255,0.25)',
+            animation: 'pulse 2s ease-in-out infinite',
+            '@keyframes pulse': {
+              '0%, 100%': { opacity: 1 },
+              '50%': { opacity: 0.6 },
+            },
+          }}
+        />
+      );
+    }
+
+    if (status === 'completed') {
+      return (
+        <Chip
+          icon={<CheckCircle sx={{ fontSize: 14 }} />}
+          label="Completed"
+          size="small"
+          onClick={() => openResultsDialog(report.report_id, report.original_filename)}
+          sx={{
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            bgcolor: 'rgba(0,230,118,0.12)',
+            color: '#00E676',
+            border: '1px solid rgba(0,230,118,0.25)',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            '&:hover': {
+              bgcolor: 'rgba(0,230,118,0.2)',
+              transform: 'scale(1.05)',
+            },
+          }}
+        />
+      );
+    }
+
+    if (status === 'error') {
+      return (
+        <Chip
+          icon={<Warning sx={{ fontSize: 14 }} />}
+          label="Failed"
+          size="small"
+          sx={{
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            bgcolor: 'rgba(255,23,68,0.12)',
+            color: '#FF1744',
+            border: '1px solid rgba(255,23,68,0.25)',
+          }}
+        />
+      );
+    }
+
+    return (
+      <Typography variant="caption" color="text.secondary">
+        —
+      </Typography>
+    );
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
@@ -155,6 +714,7 @@ function ReportsPage() {
                   <TableCell>Uploader</TableCell>
                   <TableCell>Size</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Pipeline</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
@@ -163,7 +723,7 @@ function ReportsPage() {
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
-                      {Array.from({ length: 8 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton variant="text" />
                         </TableCell>
@@ -172,7 +732,7 @@ function ReportsPage() {
                   ))
                 ) : reports.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                       <Description sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
                       <Typography color="text.secondary">No reports found</Typography>
                     </TableCell>
@@ -262,11 +822,42 @@ function ReportsPage() {
                         />
                       </TableCell>
                       <TableCell>
+                        {renderPipelineChip(report)}
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2" color="text.secondary">
                           {new Date(report.created_at).toLocaleDateString()}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
+                        <Tooltip title="Run AI Pipeline">
+                          <span>
+                            <IconButton
+                              id={`run-pipeline-${report.report_id}`}
+                              size="small"
+                              onClick={() => openConfirmDialog(report)}
+                              disabled={pipelineStatus[report.report_id] === 'processing'}
+                              sx={{
+                                color: '#AB47BC',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  color: '#CE93D8',
+                                  transform: 'scale(1.15)',
+                                  bgcolor: 'rgba(171,71,188,0.08)',
+                                },
+                                '&.Mui-disabled': {
+                                  color: 'rgba(171,71,188,0.3)',
+                                },
+                              }}
+                            >
+                              {pipelineStatus[report.report_id] === 'processing' ? (
+                                <CircularProgress size={18} sx={{ color: '#AB47BC' }} />
+                              ) : (
+                                <RocketLaunch fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                         <Tooltip title="View Details">
                           <IconButton
                             size="small"
@@ -318,6 +909,87 @@ function ReportsPage() {
           />
         </CardContent>
       </Card>
+
+      {/* ── Confirmation Dialog ── */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={closeConfirmDialog}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(145deg, rgba(17,25,40,0.97) 0%, rgba(12,17,29,0.99) 100%)',
+            border: '1px solid rgba(0,212,255,0.12)',
+            backdropFilter: 'blur(20px)',
+            minWidth: 400,
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <RocketLaunch sx={{ color: '#AB47BC' }} />
+          <Typography variant="h6" fontWeight={700}>
+            Run AI Pipeline
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'text.secondary', mb: 2 }}>
+            Are you sure you want to run the AI analysis pipeline on this report?
+          </DialogContentText>
+          {confirmDialog.report && (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                bgcolor: 'rgba(0,212,255,0.04)',
+                border: '1px solid rgba(0,212,255,0.08)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Description sx={{ color: '#00D4FF', fontSize: 20 }} />
+                <Typography variant="body2" fontWeight={600}>
+                  {confirmDialog.report.original_filename}
+                </Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Report ID: <code>{confirmDialog.report.report_id}</code>
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Size: {(confirmDialog.report.file_size / 1024).toFixed(1)} KB • {confirmDialog.report.file_extension.toUpperCase()}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button
+            onClick={closeConfirmDialog}
+            sx={{ color: 'text.secondary', fontWeight: 600 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleRunPipeline}
+            variant="contained"
+            startIcon={<RocketLaunch />}
+            sx={{
+              background: 'linear-gradient(135deg, #AB47BC, #7B1FA2)',
+              fontWeight: 700,
+              px: 3,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #CE93D8, #AB47BC)',
+              },
+            }}
+          >
+            Run Pipeline
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Results Dialog ── */}
+      <PipelineResultsDialog
+        open={resultsDialog.open}
+        onClose={closeResultsDialog}
+        results={pipelineResults[resultsDialog.reportId]}
+        reportName={resultsDialog.reportName}
+      />
     </Box>
   );
 }
