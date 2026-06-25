@@ -28,7 +28,8 @@ docker compose up -d --build
 ```
 
 **What this command does:**
-* Downloads the necessary base images (PostgreSQL, Python, Node, Nginx, Adminer).
+* Downloads the necessary base images (PostgreSQL, SeaweedFS, Python, Node, Nginx, Adminer).
+* Starts **SeaweedFS** (Master, Volume Server, and Filer) for distributed file storage.
 * Builds the Backend API using FastAPI.
 * Builds the React Frontend using Vite.
 * Starts the database and runs the Alembic database migration scripts automatically to create all tables.
@@ -64,12 +65,23 @@ Open your browser and navigate to the following URLs:
   * **Password:** *(Whatever you set as `DB_PASSWORD` in your `.env` file, default is `supersecretpassword`)*
   * **Database:** `cyber_audit`
 
-### 🪣 4. MinIO Object Storage (Console)
-* **URL:** [http://localhost:9001](http://localhost:9001)
-* MinIO provides an S3-compatible object storage interface where all the uploaded PDF reports are stored.
-* **Login Credentials:**
-  * **Username:** `minioadmin` *(or your `MINIO_ACCESS_KEY`)*
-  * **Password:** `minioadmin` *(or your `MINIO_SECRET_KEY`)*
+### 📦 4. SeaweedFS Distributed File Storage
+SeaweedFS is a distributed file storage system used to store all uploaded audit report files. It replaces traditional S3-compatible storage with a lightweight, high-performance alternative.
+
+**Architecture** (all managed automatically via Docker Compose):
+* **Master Server** — Coordinates the cluster, manages volume placement.
+* **Volume Server** — Stores the actual file data on disk.
+* **Filer** — Provides a familiar HTTP REST API (upload, download, delete) with automatic directory management.
+
+**Accessible Endpoints:**
+* **Filer UI:** [http://localhost:8888](http://localhost:8888) — Browse stored files via the Filer web interface.
+* **Master UI:** [http://localhost:9333](http://localhost:9333) — View cluster status, topology, and volume health.
+
+**Key Details:**
+* No manual bucket/directory creation is needed — the Filer automatically creates directories on file upload.
+* The backend communicates with the Filer at `http://seaweedfs-filer:8888` inside the Docker network.
+* All uploaded files are encrypted with Fernet before being stored.
+* Data is persisted in the `seaweedfs_data` Docker volume.
 
 ## Troubleshooting
 
@@ -79,13 +91,18 @@ If a service isn't starting, you can view its logs. For example, to check the ba
 docker compose logs -f backend
 ```
 
+To check SeaweedFS services:
+```bash
+docker compose logs -f seaweedfs-master seaweedfs-volume seaweedfs-filer
+```
+
 **Stopping the App:**
 To shut down the application without losing data:
 ```bash
 docker compose down
 ```
 
-**Completely Resetting the App (Wiping Database):**
+**Completely Resetting the App (Wiping Database & Storage):**
 If you want to start completely fresh and wipe the database and uploaded files:
 ```bash
 docker compose down -v

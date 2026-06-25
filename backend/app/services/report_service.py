@@ -17,7 +17,7 @@ from app.utils.file_utils import (
     _sanitize_for_json,
     MIME_TYPE_MAP,
 )
-from app.utils.minio_utils import upload_file, delete_file
+from app.utils.seaweedfs_utils import upload_file, delete_file
 from app.utils.clamav_utils import scan_file_bytes
 from app.utils.simhash_utils import calculate_simhash, is_partial_duplicate
 
@@ -167,7 +167,7 @@ async def upload_report(
     file_metadata = extract_metadata(file_bytes, extension, filename)
     page_count = file_metadata.get("page_count")
 
-    # 5. Encrypt and Upload file to MinIO
+    # 5. Encrypt and Upload file to SeaweedFS
     object_name = generate_object_name(filename)
     try:
         from app.utils.encryption_utils import encrypt_file

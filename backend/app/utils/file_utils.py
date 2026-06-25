@@ -41,7 +41,7 @@ def compute_sha256(file_bytes: bytes) -> str:
 
 def generate_object_name(original_filename: str) -> str:
     """
-    Generate MinIO object name based on current date.
+    Generate a storage object name based on current date.
     Returns the object name.
     """
     now = datetime.now(timezone.utc)

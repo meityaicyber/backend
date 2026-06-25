@@ -109,8 +109,8 @@ async def download_report(
     db: AsyncSession = Depends(get_db),
 ):
     """Download a report file."""
-    from fastapi.responses import StreamingResponse
-    from app.utils.minio_utils import get_file_stream
+    from fastapi.responses import Response
+    from app.utils.seaweedfs_utils import get_file_bytes
 
     report = await report_service.get_report_by_id(db, report_id)
     if not report:
@@ -127,31 +127,22 @@ async def download_report(
 
     object_name = report.storage.encrypted_file_path
     try:
-        minio_response = get_file_stream(object_name)
+        encrypted_data = get_file_bytes(object_name)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"File not found in storage: {e}",
         )
 
-    def iterfile():
-        try:
-            encrypted_data = minio_response.read()
-            if report.storage.encryption_algorithm == "Fernet":
-                from app.utils.encryption_utils import decrypt_file
-                decrypted_data = decrypt_file(encrypted_data)
-                yield decrypted_data
-            else:
-                yield encrypted_data
-        except Exception as e:
-            # If decryption fails, we might want to log it, but for now just raise
-            raise HTTPException(status_code=500, detail=f"Failed to decrypt file: {e}")
-        finally:
-            minio_response.close()
-            minio_response.release_conn()
+    # Decrypt if needed
+    if report.storage.encryption_algorithm == "Fernet":
+        from app.utils.encryption_utils import decrypt_file
+        file_data = decrypt_file(encrypted_data)
+    else:
+        file_data = encrypted_data
 
-    return StreamingResponse(
-        iterfile(),
+    return Response(
+        content=file_data,
         media_type=report.mime_type,
         headers={"Content-Disposition": f'attachment; filename="{report.original_filename}"'}
     )
