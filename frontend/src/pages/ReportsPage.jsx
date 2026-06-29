@@ -28,6 +28,8 @@ import {
   Collapse,
   Divider,
   LinearProgress,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search,
@@ -80,6 +82,7 @@ const riskLevelGradient = {
 
 /* ──────────── Pipeline Results Dialog ──────────── */
 function PipelineResultsDialog({ open, onClose, results, reportName }) {
+  const [tabValue, setTabValue] = useState(0);
   const [expandedSections, setExpandedSections] = useState({
     vulnerabilities: true,
     compliance: false,
@@ -91,10 +94,20 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
   const toggleSection = (section) =>
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
 
-  const risk = results.risk_assessment || {};
-  const vulns = results.vulnerabilities || {};
+  const execSummary = results.executive_summary || {};
+  const vulnsArray = results.vulnerabilities || [];
   const compliance = results.compliance || {};
   const recommendations = results.recommendations || [];
+  
+  let riskLevel = 'LOW';
+  const crit = execSummary.critical_count || 0;
+  const high = execSummary.high_count || 0;
+  const med = execSummary.medium_count || 0;
+  const low = execSummary.low_count || 0;
+  
+  if (crit > 0) riskLevel = 'CRITICAL';
+  else if (high > 0) riskLevel = 'HIGH';
+  else if (med > 0) riskLevel = 'MEDIUM';
 
   return (
     <Dialog
@@ -135,7 +148,21 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 1 }}>
+      <Tabs
+        value={tabValue}
+        onChange={(e, v) => setTabValue(v)}
+        sx={{ px: 3, borderBottom: 1, borderColor: 'rgba(255,255,255,0.1)', mb: 1 }}
+        textColor="inherit"
+        indicatorColor="primary"
+      >
+        <Tab label="Overview" sx={{ color: '#fff', fontWeight: 600 }} />
+        <Tab label="Full JSON" sx={{ color: '#fff', fontWeight: 600 }} />
+        <Tab label="Vulnerabilities" sx={{ color: '#fff', fontWeight: 600 }} />
+      </Tabs>
+
+      <DialogContent sx={{ pt: 1, minHeight: 400 }}>
+        {tabValue === 0 && (
+          <Box>
         {/* ── Risk Score Card ── */}
         <Box
           sx={{
@@ -150,7 +177,7 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
               flex: '1 1 200px',
               p: 2.5,
               borderRadius: 2.5,
-              background: riskLevelGradient[risk.risk_level] || riskLevelGradient.MEDIUM,
+              background: riskLevelGradient[riskLevel] || riskLevelGradient.MEDIUM,
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -169,11 +196,11 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
             <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
               Overall Risk Score
             </Typography>
-            <Typography variant="h3" fontWeight={800} sx={{ color: '#fff' }}>
-              {risk.overall_risk_score}
+            <Typography variant="h4" fontWeight={800} sx={{ color: '#fff', mt: 1 }}>
+              {execSummary.summary_text || riskLevel}
             </Typography>
             <Chip
-              label={risk.risk_level}
+              label={riskLevel}
               size="small"
               sx={{
                 mt: 0.5,
@@ -198,54 +225,25 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
               Vulnerabilities Summary
             </Typography>
             <Typography variant="h3" fontWeight={800} sx={{ color: '#00D4FF' }}>
-              {vulns.total_found || 0}
+              {execSummary.total_vulnerabilities || 0}
             </Typography>
             <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
-              {vulns.critical > 0 && (
-                <Chip label={`${vulns.critical} Critical`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,23,68,0.15)', color: '#FF1744' }} />
+              {crit > 0 && (
+                <Chip label={`${crit} Critical`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,23,68,0.15)', color: '#FF1744' }} />
               )}
-              {vulns.high > 0 && (
-                <Chip label={`${vulns.high} High`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,145,0,0.15)', color: '#FF9100' }} />
+              {high > 0 && (
+                <Chip label={`${high} High`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,145,0,0.15)', color: '#FF9100' }} />
               )}
-              {vulns.medium > 0 && (
-                <Chip label={`${vulns.medium} Medium`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,214,0,0.15)', color: '#FFD600' }} />
+              {med > 0 && (
+                <Chip label={`${med} Medium`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(255,214,0,0.15)', color: '#FFD600' }} />
               )}
-              {vulns.low > 0 && (
-                <Chip label={`${vulns.low} Low`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(0,230,118,0.15)', color: '#00E676' }} />
+              {low > 0 && (
+                <Chip label={`${low} Low`} size="small" sx={{ fontSize: '0.65rem', fontWeight: 600, bgcolor: 'rgba(0,230,118,0.15)', color: '#00E676' }} />
               )}
             </Box>
           </Box>
 
-          <Box
-            sx={{
-              flex: '1 1 140px',
-              p: 2.5,
-              borderRadius: 2.5,
-              background: 'rgba(0,230,118,0.06)',
-              border: '1px solid rgba(0,230,118,0.1)',
-            }}
-          >
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Confidence
-            </Typography>
-            <Typography variant="h3" fontWeight={800} sx={{ color: '#00E676' }}>
-              {Math.round((risk.confidence_score || 0) * 100)}%
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={(risk.confidence_score || 0) * 100}
-              sx={{
-                mt: 1,
-                height: 6,
-                borderRadius: 3,
-                bgcolor: 'rgba(0,230,118,0.1)',
-                '& .MuiLinearProgress-bar': {
-                  borderRadius: 3,
-                  background: 'linear-gradient(90deg, #00E676, #00C853)',
-                },
-              }}
-            />
-          </Box>
+          {/* Confidence Box Removed as not present in masterjson */}
         </Box>
 
         {/* ── Vulnerabilities Details ── */}
@@ -272,7 +270,7 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
           </Box>
           <Collapse in={expandedSections.vulnerabilities}>
             <Box sx={{ pl: 1, pr: 1 }}>
-              {(vulns.details || []).map((v, i) => (
+              {(vulnsArray).map((v, i) => (
                 <Box
                   key={v.id || i}
                   sx={{
@@ -301,14 +299,14 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
                       </Typography>
                     </Box>
                     <Typography variant="caption" color="text.secondary">
-                      Confidence: {Math.round((v.confidence || 0) * 100)}%
+                      CVSS: {v.cvss_score || 'N/A'}
                     </Typography>
                   </Box>
                   <Typography variant="body2" fontWeight={600} sx={{ mb: 0.5 }}>
-                    {v.title}
+                    {v.vulnerability_title}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    📍 {v.location}
+                    📍 {v.detailed_observation}
                   </Typography>
                 </Box>
               ))}
@@ -480,6 +478,53 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
             </Typography>
           </Box>
         </Box>
+        </Box>
+        )}
+        {tabValue === 1 && (
+          <Box sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.5)', borderRadius: 2, overflowX: 'auto', maxHeight: 600, overflowY: 'auto' }}>
+            <pre style={{ margin: 0, color: '#00D4FF', fontSize: '0.85rem' }}>
+              {JSON.stringify(results, null, 2)}
+            </pre>
+          </Box>
+        )}
+
+        {tabValue === 2 && (
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>ID</TableCell>
+                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Severity</TableCell>
+                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Title</TableCell>
+                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Location</TableCell>
+                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>CVSS</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {(vulnsArray).map((v) => (
+                  <TableRow key={v.id}>
+                    <TableCell sx={{ fontFamily: 'monospace', color: '#fff' }}>{v.id}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={v.severity}
+                        size="small"
+                        sx={{
+                          bgcolor: `${severityColor[v.severity] || '#aaa'}20`,
+                          color: severityColor[v.severity] || '#aaa',
+                          fontWeight: 700,
+                          fontSize: '0.65rem'
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600, color: '#fff' }}>{v.vulnerability_title}</TableCell>
+                    <TableCell sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>{v.detailed_observation}</TableCell>
+                    <TableCell sx={{ color: '#fff' }}>{v.cvss_score || 'N/A'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -596,6 +641,21 @@ function ReportsPage() {
 
   const closeResultsDialog = () => {
     setResultsDialog({ open: false, reportId: null, reportName: '' });
+  };
+
+  const handleViewResults = async (report) => {
+    try {
+      const response = await api.get(`/api/reports/${report.report_id}/results`);
+      setPipelineResults((prev) => ({ ...prev, [report.report_id]: response.data }));
+      setPipelineStatus((prev) => ({ ...prev, [report.report_id]: 'completed' }));
+      openResultsDialog(report.report_id, report.original_filename);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        enqueueSnackbar('No pipeline results found for this report.', { variant: 'info' });
+      } else {
+        enqueueSnackbar('Failed to load results.', { variant: 'error' });
+      }
+    }
   };
 
   const renderPipelineChip = (report) => {
@@ -857,6 +917,15 @@ function ReportsPage() {
                               )}
                             </IconButton>
                           </span>
+                        </Tooltip>
+                        <Tooltip title="View AI Results">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewResults(report)}
+                            sx={{ color: '#FFD600', '&:hover': { color: '#FFF' } }}
+                          >
+                            <Security fontSize="small" />
+                          </IconButton>
                         </Tooltip>
                         <Tooltip title="View Details">
                           <IconButton

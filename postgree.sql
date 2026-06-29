@@ -414,3 +414,66 @@ CREATE TABLE IF NOT EXISTS "public"."vapt_roadmap_findings" (
                                               REFERENCES vapt_remediation_roadmap(id)
                                               ON DELETE CASCADE
 );
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+DO $$ BEGIN
+    CREATE TYPE severity_level AS ENUM ('Critical', 'High', 'Medium', 'Low', 'Informational');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE vuln_status AS ENUM ('Open', 'Closed', 'Accepted', 'Risk Accepted', 'In Progress');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "public"."reports_data" (
+    "report_id"         uuid            NOT NULL,
+    "report_date"       date,
+    "data"              jsonb           NOT NULL,
+    "created_at"        timestamptz     NOT NULL DEFAULT now(),
+    "updated_at"        timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT "reports_data_pkey"      PRIMARY KEY ("report_id"),
+    CONSTRAINT "reports_data_report_fk" FOREIGN KEY (report_id) REFERENCES reports(report_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_reports_report_date" ON "public"."reports_data" ("report_date");
+CREATE INDEX IF NOT EXISTS "idx_reports_data_gin"    ON "public"."reports_data" USING GIN ("data");
+
+CREATE TABLE IF NOT EXISTS "public"."vulnerabilities" (
+    "vuln_id"               uuid            NOT NULL DEFAULT gen_random_uuid(),
+    "report_id"             uuid            NOT NULL,
+    "vuln_seq_id"           smallint,
+    "vulnerability_title"   text            NOT NULL,
+    "category"              text,
+    "severity"              severity_level,
+    "cvss_score"            numeric(3,1)    CHECK (cvss_score BETWEEN 0.0 AND 10.0),
+    "cve_ids"               text[],
+    "cwe_ids"               text[],
+    "affected_assets"       text[],
+    "status"                vuln_status,
+    "new_or_repeat"         text,
+    "revalidation_status"   text,
+    "detailed_observation"  text,
+    "description"           text,
+    "impact"                text,
+    "recommendation"        text,
+    "proof_of_concept"      text,
+    "reproduction_steps"    text,
+    "reference"             text,
+    "meta"                  jsonb,
+    "created_at"            timestamptz     NOT NULL DEFAULT now(),
+    "updated_at"            timestamptz     NOT NULL DEFAULT now(),
+    CONSTRAINT "vulnerabilities_pkey"      PRIMARY KEY ("vuln_id"),
+    CONSTRAINT "vulnerabilities_report_fk" FOREIGN KEY (report_id) REFERENCES reports(report_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS "idx_vulns_report_id"    ON "public"."vulnerabilities" ("report_id");
+CREATE INDEX IF NOT EXISTS "idx_vulns_severity"     ON "public"."vulnerabilities" ("severity");
+CREATE INDEX IF NOT EXISTS "idx_vulns_status"       ON "public"."vulnerabilities" ("status");
+CREATE INDEX IF NOT EXISTS "idx_vulns_cve_ids"      ON "public"."vulnerabilities" USING GIN ("cve_ids");
+CREATE INDEX IF NOT EXISTS "idx_vulns_cwe_ids"      ON "public"."vulnerabilities" USING GIN ("cwe_ids");
+CREATE INDEX IF NOT EXISTS "idx_vulns_assets"       ON "public"."vulnerabilities" USING GIN ("affected_assets");
+CREATE INDEX IF NOT EXISTS "idx_vulns_meta_gin"     ON "public"."vulnerabilities" USING GIN ("meta");

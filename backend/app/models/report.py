@@ -2,9 +2,9 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum
+    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
 import enum
 
@@ -72,6 +72,14 @@ class Report(Base):
         cascade="all, delete-orphan"
     )
     audit_logs = relationship("AuditLog", back_populates="report", lazy="noload")
+    report_data = relationship(
+        "ReportsData", back_populates="report", uselist=False, lazy="noload",
+        cascade="all, delete-orphan"
+    )
+    vulnerabilities = relationship(
+        "Vulnerability", back_populates="report", lazy="noload",
+        cascade="all, delete-orphan"
+    )
 
 
 class ReportMetadata(Base):
@@ -169,3 +177,91 @@ class PartialDuplicate(Base):
     # Relationships
     report = relationship("Report", foreign_keys=[report_id], back_populates="partial_duplicate")
     original_report = relationship("Report", foreign_keys=[original_report_id])
+
+
+class SeverityLevel(str, enum.Enum):
+    CRITICAL = 'Critical'
+    HIGH = 'High'
+    MEDIUM = 'Medium'
+    LOW = 'Low'
+    INFORMATIONAL = 'Informational'
+
+class VulnStatus(str, enum.Enum):
+    OPEN = 'Open'
+    CLOSED = 'Closed'
+    ACCEPTED = 'Accepted'
+    RISK_ACCEPTED = 'Risk Accepted'
+    IN_PROGRESS = 'In Progress'
+
+class ReportsData(Base):
+    __tablename__ = "reports_data"
+
+    report_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+    report_date = Column(Date, nullable=True, index=True)
+    data = Column(JSONB, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    report = relationship("Report", back_populates="report_data")
+
+class Vulnerability(Base):
+    __tablename__ = "vulnerabilities"
+
+    vuln_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    report_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    vuln_seq_id = Column(SmallInteger, nullable=True)
+    vulnerability_title = Column(Text, nullable=False)
+    category = Column(Text, nullable=True)
+    severity = Column(
+        Enum(SeverityLevel, name="severity_level", create_constraint=True),
+        nullable=True,
+        index=True
+    )
+    cvss_score = Column(Numeric(3, 1), nullable=True)
+    cve_ids = Column(ARRAY(Text), nullable=True)
+    cwe_ids = Column(ARRAY(Text), nullable=True)
+    affected_assets = Column(ARRAY(Text), nullable=True)
+    status = Column(
+        Enum(VulnStatus, name="vuln_status", create_constraint=True),
+        nullable=True,
+        index=True
+    )
+    new_or_repeat = Column(Text, nullable=True)
+    revalidation_status = Column(Text, nullable=True)
+    detailed_observation = Column(Text, nullable=True)
+    description = Column(Text, nullable=True)
+    impact = Column(Text, nullable=True)
+    recommendation = Column(Text, nullable=True)
+    proof_of_concept = Column(Text, nullable=True)
+    reproduction_steps = Column(Text, nullable=True)
+    reference = Column(Text, nullable=True)
+    meta_data = Column("meta", JSONB, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    report = relationship("Report", back_populates="vulnerabilities")
+
