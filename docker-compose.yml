@@ -99,7 +99,7 @@ services:
 
   ai-pipeline:
     build:
-      context: ../ai_pipeline
+      context: ./ai_pipeline
       dockerfile: Dockerfile
     container_name: cyber-audit-ai-pipeline
     ports:
