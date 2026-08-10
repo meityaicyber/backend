@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Make entrypoint executable
-RUN chmod +x entrypoint.sh
+# Make entrypoint executable (strip Windows line-endings if present)
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # Create storage directory
 RUN mkdir -p /storage/reports

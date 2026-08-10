@@ -30,6 +30,7 @@ import {
   Logout,
   Shield,
   Business,
+  Analytics,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -37,6 +38,7 @@ const DRAWER_WIDTH = 260;
 
 const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
+  { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'Upload Report', icon: <CloudUpload />, path: '/upload' },
   { text: 'Reports', icon: <Description />, path: '/reports' },
   { text: 'User Management', icon: <People />, path: '/users', adminOnly: true },

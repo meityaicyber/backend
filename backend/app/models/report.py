@@ -180,18 +180,18 @@ class PartialDuplicate(Base):
 
 
 class SeverityLevel(str, enum.Enum):
-    CRITICAL = 'Critical'
-    HIGH = 'High'
-    MEDIUM = 'Medium'
-    LOW = 'Low'
-    INFORMATIONAL = 'Informational'
+    CRITICAL = 'CRITICAL'
+    HIGH = 'HIGH'
+    MEDIUM = 'MEDIUM'
+    LOW = 'LOW'
+    INFORMATIONAL = 'INFORMATIONAL'
 
 class VulnStatus(str, enum.Enum):
-    OPEN = 'Open'
-    CLOSED = 'Closed'
-    ACCEPTED = 'Accepted'
-    RISK_ACCEPTED = 'Risk Accepted'
-    IN_PROGRESS = 'In Progress'
+    OPEN = 'OPEN'
+    CLOSED = 'CLOSED'
+    ACCEPTED = 'ACCEPTED'
+    RISK_ACCEPTED = 'RISK_ACCEPTED'
+    IN_PROGRESS = 'IN_PROGRESS'
 
 class ReportsData(Base):
     __tablename__ = "reports_data"

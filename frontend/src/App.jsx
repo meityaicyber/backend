@@ -16,6 +16,7 @@ import UserManagementPage from './pages/UserManagementPage';
 import AgencyManagementPage from './pages/AgencyManagementPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
+import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
 
 function App() {
   const { loading } = useAuth();
@@ -47,6 +48,7 @@ function App() {
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/analytics" element={<AnalyticsDashboardPage />} />
           <Route
             path="/users"
             element={
