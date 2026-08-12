@@ -9,13 +9,18 @@ const api = axios.create({
   },
 });
 
-// Request interceptor - attach Bearer token
+// Request interceptor - attach Bearer token and keep multipart uploads boundary-safe
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error)

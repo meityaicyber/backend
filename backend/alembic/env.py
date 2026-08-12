@@ -12,6 +12,7 @@ from app.database import Base
 from app.models.user import User, Role, UserRole, UserSession
 from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, PartialDuplicate, ReportsData, Vulnerability
 from app.models.audit import AuditLog, SecurityEvent
+from app.models.knowledge_registry import KnowledgeRegistry
 from app.config import settings
 
 config = context.config

@@ -32,6 +32,9 @@ class Settings(BaseSettings):
 
     # AI Pipeline Service
     AI_PIPELINE_URL: str = "http://ai-pipeline:8001"
+    QWEN_API_URL: str | None = None
+    QWEN_API_KEY: str | None = None
+    QWEN_MODEL: str = "qwen2.5-7b-instruct"
 
     # Admin defaults
     DEFAULT_ADMIN_USERNAME: str = "admin"

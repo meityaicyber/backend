@@ -30,6 +30,9 @@ import {
   Logout,
   Shield,
   Business,
+  SystemUpdateAlt,
+  Assessment,
+  Hub,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -39,6 +42,9 @@ const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { text: 'Upload Report', icon: <CloudUpload />, path: '/upload' },
   { text: 'Reports', icon: <Description />, path: '/reports' },
+  { text: 'External Knowledge Registry', icon: <Hub />, path: '/knowledge-registry' },
+  { text: 'Generate Package', icon: <Assessment />, path: '/benchmark-management' },
+  { text: 'Offline Update', icon: <SystemUpdateAlt />, path: '/offline-update' },
   { text: 'User Management', icon: <People />, path: '/users', adminOnly: true },
   { text: 'Agency Management', icon: <Business />, path: '/agencies', adminOnly: true },
   { text: 'Audit Logs', icon: <Security />, path: '/audit-logs', adminOnly: true },

@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Make entrypoint executable
-RUN chmod +x entrypoint.sh
+# Normalize entrypoint line endings for Docker and make it executable
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 # Create storage directory
 RUN mkdir -p /storage/reports

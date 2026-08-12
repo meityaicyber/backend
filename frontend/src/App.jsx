@@ -16,6 +16,9 @@ import UserManagementPage from './pages/UserManagementPage';
 import AgencyManagementPage from './pages/AgencyManagementPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
+import OfflineUpdatePage from './pages/OfflineUpdatePage';
+import BenchmarkManagementPage from './pages/BenchmarkManagementPage';
+import KnowledgeRegistryPage from './pages/KnowledgeRegistryPage';
 
 function App() {
   const { loading } = useAuth();
@@ -46,6 +49,9 @@ function App() {
           <Route path="/upload" element={<UploadReportPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportDetailPage />} />
+          <Route path="/offline-update" element={<OfflineUpdatePage />} />
+          <Route path="/benchmark-management" element={<BenchmarkManagementPage />} />
+          <Route path="/knowledge-registry" element={<KnowledgeRegistryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/users"
