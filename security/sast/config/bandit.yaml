@@ -1,0 +1,10 @@
+# security/sast/bandit.yaml
+exclude_dirs:
+  - '*venv*'
+  - '*node_modules*'
+  - '*.git*'
+  - '*test_fixtures*'
+  - 'test_fixtures'
+
+# We don't explicitly list tests to let Bandit run all its default plugins.
+# We ensure we do NOT use "skips" for B602, B603, B604, B301, B403, B108, B324.

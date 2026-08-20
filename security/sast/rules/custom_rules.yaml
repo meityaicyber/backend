@@ -1,0 +1,133 @@
+rules:
+  # ==========================================
+  # 1. DEEP TAINT ANALYSIS (DATA FLOW TRACKING)
+  # ==========================================
+  
+  - id: deep-taint-sql-injection
+    mode: taint
+    message: "Deep SQLi: Untrusted data from a web request flows directly into a database query. Use parameterized queries (e.g., `execute(query, params)`)."
+    languages: [python]
+    severity: ERROR
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.args.get(...)
+          - pattern: flask.request.form.get(...)
+          - pattern: django.http.HttpRequest.GET.get(...)
+          - pattern: django.http.HttpRequest.POST.get(...)
+          - pattern: fastapi.Request.query_params[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: $CURSOR.execute(...)
+          - pattern: $SESSION.execute(...)
+    
+  - id: deep-taint-command-injection
+    mode: taint
+    message: "Deep Command Injection: Untrusted web request data flows into OS command execution."
+    languages: [python]
+    severity: ERROR
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.args.get(...)
+          - pattern: flask.request.form.get(...)
+          - pattern: fastapi.Request.query_params[...]
+    pattern-sinks:
+      - pattern-either:
+          - pattern: os.system(...)
+          - pattern: subprocess.Popen(...)
+          - pattern: subprocess.run(...)
+          - pattern: subprocess.call(...)
+
+  - id: deep-taint-ssrf
+    mode: taint
+    message: "Server-Side Request Forgery (SSRF): Untrusted user input is used to construct an outbound HTTP request."
+    languages: [python]
+    severity: ERROR
+    pattern-sources:
+      - pattern-either:
+          - pattern: flask.request.$W
+          - pattern: fastapi.Request.$W
+    pattern-sinks:
+      - pattern-either:
+          - pattern: requests.get(...)
+          - pattern: requests.post(...)
+          - pattern: urllib.request.urlopen(...)
+
+  # ==========================================
+  # 2. AI / MACHINE LEARNING SECURITY
+  # ==========================================
+
+  - id: deep-ai-insecure-torch-load
+    patterns:
+      - pattern: torch.load(...)
+      - pattern-not: torch.load(..., weights_only=True, ...)
+    message: "Insecure AI Model Loading: `torch.load` can execute arbitrary code. You MUST pass `weights_only=True` to prevent RCE from malicious model weights."
+    languages: [python]
+    severity: ERROR
+
+  - id: deep-ai-insecure-numpy-load
+    patterns:
+      - pattern: numpy.load(..., allow_pickle=True, ...)
+    message: "Insecure Numpy Loading: `allow_pickle=True` allows arbitrary code execution via malicious .npy arrays."
+    languages: [python]
+    severity: ERROR
+
+  # ==========================================
+  # 3. ADVANCED CRYPTOGRAPHY FLAWS
+  # ==========================================
+
+  - id: deep-crypto-weak-cipher-mode-ecb
+    patterns:
+      - pattern-either:
+          - pattern: cryptography.hazmat.primitives.ciphers.modes.ECB(...)
+          - pattern: Crypto.Cipher.AES.new(..., Crypto.Cipher.AES.MODE_ECB, ...)
+    message: "Cryptographic Flaw: ECB mode is deterministic and insecure. Use authenticated encryption modes like GCM (AES-GCM) instead."
+    languages: [python]
+    severity: ERROR
+
+  - id: deep-crypto-static-iv-or-salt
+    patterns:
+      - pattern-either:
+          - pattern: os.urandom(0)
+          - pattern: $CIPHER.new(..., iv="HARDCODED_STRING", ...)
+          - pattern: $CIPHER.new(..., IV="HARDCODED_STRING", ...)
+    message: "Cryptographic Flaw: Initialization Vectors (IV) or Salts must be securely generated and completely unpredictable (e.g., os.urandom(16))."
+    languages: [python]
+    severity: ERROR
+
+  # ==========================================
+  # 4. XML EXTERNAL ENTITY (XXE)
+  # ==========================================
+
+  - id: deep-xxe-lxml-resolve-entities
+    patterns:
+      - pattern: lxml.etree.XMLParser(..., resolve_entities=True, ...)
+    message: "XXE Vulnerability: XML parser is configured to resolve external entities. This allows reading local files on the server (e.g., /etc/passwd). Set resolve_entities=False."
+    languages: [python]
+    severity: ERROR
+
+  # ==========================================
+  # 5. FRONTEND DEEP DOM XSS (JS/TS)
+  # ==========================================
+  
+  - id: deep-react-dangerouslysetinnerhtml
+    patterns:
+      - pattern-inside: |
+          <div dangerouslySetInnerHTML={{ __html: $INPUT }} />
+      - pattern-not: |
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize($INPUT) }} />
+    message: "Deep DOM XSS: Untrusted input passed to `dangerouslySetInnerHTML` without being wrapped in a sanitizer like `DOMPurify.sanitize()`."
+    languages: [javascript, typescript]
+    severity: ERROR
+
+  - id: deep-dom-xss-innerhtml
+    mode: taint
+    pattern-sources:
+      - pattern-either:
+          - pattern: window.location.search
+          - pattern: window.location.hash
+          - pattern: document.cookie
+    pattern-sinks:
+      - pattern: $EL.innerHTML = ...
+    message: "Deep DOM XSS: Data from the URL or cookies is flowing directly into innerHTML. This is a severe Cross-Site Scripting vector."
+    languages: [javascript, typescript]
+    severity: ERROR

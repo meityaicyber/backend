@@ -1,0 +1,26 @@
+{
+  "opengrep": {
+    "command": "venv\\Scripts\\semgrep.exe --json -o security/reports/opengrep-results.json --config security/sast/rules/custom_rules.yaml --exclude \"**/venv/**\" --exclude \"**/node_modules/**\" .",
+    "enabled": true
+  },
+  "bandit": {
+    "command": "venv\\Scripts\\python.exe -m bandit -c security/sast/config/bandit.yaml -r . -f json -o security/reports/bandit-results.json",
+    "enabled": true
+  },
+  "eslint": {
+    "command": "cmd.exe /c \"C:\\nvm4w\\nodejs\\eslint.cmd . --format json --output-file security/reports/eslint-results.json --ignore-pattern \\\"**/venv/**\\\" --ignore-pattern \\\"**/node_modules/**\\\" --ignore-pattern \\\"**/dist/**\\\"\"",
+    "enabled": true
+  },
+  "trivy": {
+    "command": "bin\\trivy.exe fs --format json --output security/reports/trivy-results.json --skip-dirs venv --skip-dirs node_modules --skip-dirs backend/backend/venv .",
+    "enabled": true
+  },
+  "grype": {
+    "command": "bin\\syft.exe . --exclude \"**/venv/**\" --exclude \"**/node_modules/**\" -o cyclonedx-json=security/reports/sbom.json && bin\\grype.exe sbom:security/reports/sbom.json -o json --file security/reports/grype-results.json",
+    "enabled": false
+  },
+  "betterleaks": {
+    "command": "bin\\\\betterleaks.exe detect --source . --report-path security/reports/betterleaks-results.json --report-format json --exit-code 0 --no-git",
+    "enabled": true
+  }
+}

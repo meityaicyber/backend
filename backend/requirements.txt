@@ -5,9 +5,9 @@ asyncpg==0.30.0
 alembic==1.13.3
 pydantic==2.9.2
 pydantic-settings==2.5.2
-python-jose[cryptography]==3.3.0
+PyJWT==2.10.1
 passlib[argon2]==1.7.4
-python-multipart==0.0.12
+python-multipart==0.0.20
 python-magic==0.4.27
 PyPDF2==3.0.1
 python-docx==1.1.2
@@ -16,6 +16,6 @@ argon2-cffi==23.1.0
 clamd==1.0.2
 simhash==2.1.2
 
-cryptography==43.0.1
+cryptography==44.0.0
 msoffcrypto-tool==5.0.1
 email-validator==2.1.1
