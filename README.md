@@ -1,188 +1,65 @@
-# Cybersecurity Audit Report Management System
+# Cyber Audit High-Throughput Ingestion Pipeline
 
-A production-ready full-stack application for managing cybersecurity audit reports with role-based access control, secure file upload with validation, metadata extraction, and comprehensive audit logging.
+This project implements an AI-Based Solution for Analysing, Benchmarking and Quality Monitoring of Cybersecurity Audit Reports. 
+It specifically addresses the requirement for a High-Throughput Document Ingestion & Processing Pipeline.
 
-## Tech Stack
+## Architecture
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 18, Vite, Material UI, React Hook Form |
-| Backend | FastAPI, SQLAlchemy, Alembic, Pydantic |
-| Database | PostgreSQL 16 |
-| Auth | JWT + Argon2 password hashing |
-| Containerization | Docker, Docker Compose |
+The system is designed as an asynchronous, event-driven pipeline:
+1. **Ingestion API (FastAPI):** Receives multipart document uploads. Uses Uvicorn concurrency limits and Redis-backed admission control to achieve 0% 5xx errors under load.
+2. **Idempotency Layer (Redis):** Caches `Idempotency-Key` headers to ensure duplicate uploads are gracefully ignored and return the existing Job ID.
+3. **Message Broker (Redpanda/Kafka):** Buffers the burst of uploads. Uses `agency_id` as the partition key to guarantee chronological ordering of documents from the same agency.
+4. **Worker Nodes (Python/asyncio):** Consume messages from Kafka, simulate heavy processing, and provide *At-Least-Once Delivery* by committing Kafka offsets only after successful PostgreSQL transactions.
+5. **Observability (Prometheus/Grafana):** Fully instrumented to visualize API throughput, 429 rejection rates, latency, and worker performance.
 
-## Quick Start
+## Capacity Guarantees
 
-### Prerequisites
+Based on the 12-core, 16GB reference hardware:
+* **Max Active Pipelines:** 2,500
+* **Target Processing Rate:** 166.67 documents/second
+* **Burst Limit:** The API is designed to handle 5,000 uploads in 30 seconds by gracefully rejecting excess traffic (HTTP 429 Retry-After) rather than crashing (HTTP 500).
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+## Quickstart (Offline Local Deployment)
 
-### 1. Clone and Configure
+Everything runs locally via Docker Compose. No cloud dependencies are required.
 
-```bash
-# Copy environment template
-cp .env.example .env
+1. **Boot the Cluster:**
+   ```bash
+   docker compose up -d --build
+   ```
+   *This starts Redpanda, Redis, PostgreSQL, Prometheus, Grafana, the Ingestion API, and 4 Worker replicas.*
 
-# (Optional) Edit .env to set secure passwords
-```
+2. **Verify Services:**
+   Check that all containers are healthy.
+   ```bash
+   docker compose ps
+   ```
 
-### 2. Start the Application
+3. **Access Dashboards:**
+   * **Grafana:** `http://localhost:3000` (Default credentials, pre-provisioned dashboards)
+   * **API Docs:** `http://localhost:8080/docs`
 
-```bash
-docker compose up --build
-```
+## Load Testing
 
-This will:
-- Start PostgreSQL 16 with health checks
-- Wait for the database to be ready
-- Run Alembic migrations to create all tables
-- Seed default roles (ADMIN, AUDITOR, REVIEWER) and admin user
-- Start the FastAPI backend on port 8000
-- Build and serve the React frontend via Nginx on port 3000
+A Locust test suite is provided to validate the 5,000 document burst scenario.
 
-### 3. Access the Application
+1. **Install Dependencies:**
+   ```bash
+   cd load_tests
+   pip install -r requirements.txt
+   ```
 
-| Service | URL |
-|---------|-----|
-| Frontend | [http://localhost:3000](http://localhost:3000) |
-| Backend API | [http://localhost:8000](http://localhost:8000) |
-| API Docs (Swagger) | [http://localhost:8000/docs](http://localhost:8000/docs) |
+2. **Run the Load Test:**
+   ```bash
+   locust -f locustfile.py --host=http://localhost:8080
+   ```
+   Open `http://localhost:8089` to configure the test (e.g., 5,000 users, 500 spawn rate).
+   *Expect to see a mix of 202 (Accepted) and 429 (Too Many Requests). You should see exactly **0** 500-level errors.*
 
-### 4. Login
+## Design Documentation
 
-```
-Username: admin
-Password: Admin@123
-```
-
-## Features
-
-### Authentication & Authorization
-- JWT access tokens (30 min expiry) + refresh tokens (7 day expiry)
-- Refresh token rotation for security
-- Argon2 password hashing
-- Role-based access control (ADMIN, AUDITOR, REVIEWER)
-
-### File Upload & Processing
-- Drag & drop file upload with progress bar
-- Supported formats: PDF, DOCX, TXT
-- File validation: extension check, MIME type verification
-- SHA256 hash generation and duplicate detection
-- Metadata extraction (title, author, page count, etc.)
-- Files stored at `/storage/reports/YYYY/MM/`
-
-### Dashboard
-- Total reports and users count
-- Reports by status breakdown
-- Recent uploads table
-
-### User Management (Admin)
-- Create, edit, deactivate users
-- Role assignment with multi-select
-
-### Audit Logging
-- Tracks all file uploads, deletions, and user actions
-- Filterable by action type
-- Timestamped with user attribution
-
-## API Endpoints
-
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login` | Login and get tokens |
-| POST | `/api/auth/refresh` | Refresh access token |
-| POST | `/api/auth/logout` | Logout and revoke session |
-| GET | `/api/auth/me` | Get current user profile |
-
-### Reports
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/reports/upload` | Upload a report file |
-| GET | `/api/reports` | List reports with search |
-| GET | `/api/reports/{id}` | Get report details |
-| GET | `/api/reports/{id}/download` | Download report file |
-| DELETE | `/api/reports/{id}` | Delete report (admin) |
-
-### Users
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/users` | List users (admin) |
-| POST | `/api/users` | Create user (admin) |
-| PUT | `/api/users/{id}` | Update user (admin) |
-| DELETE | `/api/users/{id}` | Deactivate user (admin) |
-
-### Other
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/audit-logs` | List audit logs (admin) |
-| GET | `/api/dashboard/stats` | Dashboard statistics |
-| GET | `/api/health` | Health check |
-
-## Project Structure
-
-```
-├── backend/
-│   ├── app/
-│   │   ├── main.py              # FastAPI application
-│   │   ├── config.py            # Configuration settings
-│   │   ├── database.py          # SQLAlchemy setup
-│   │   ├── dependencies.py      # Auth dependencies
-│   │   ├── models/              # SQLAlchemy models
-│   │   ├── schemas/             # Pydantic schemas
-│   │   ├── routers/             # API route handlers
-│   │   ├── services/            # Business logic
-│   │   └── utils/               # Security & file utilities
-│   ├── alembic/                 # Database migrations
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── entrypoint.sh
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── api/axios.js         # API client with interceptors
-│   │   ├── contexts/            # Auth context
-│   │   ├── components/          # Layout, guards
-│   │   └── pages/               # All application pages
-│   ├── Dockerfile
-│   └── nginx.conf
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
-
-## Database Schema
-
-10 tables: `users`, `roles`, `user_roles`, `user_sessions`, `reports`, `report_metadata`, `file_validation`, `file_storage`, `audit_logs`, `security_events`
-
-## Stopping the Application
-
-```bash
-docker compose down
-
-# To also remove data volumes:
-docker compose down -v
-```
-
-## Development
-
-### Backend only (outside Docker)
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend only (outside Docker)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-## License
-
-MIT
+For deep dives into the architectural contracts, please refer to:
+* `docs/design/architecture.md`
+* `docs/design/capacity-model.md`
+* `docs/design/sharding-contract.md`
+* `docs/design/datastore-contract.md`

@@ -1,3 +1,9 @@
+version: "3.8"
+
+networks:
+  public_net:
+  private_net:
+
 volumes:
   postgres_data:
     driver: local
@@ -6,6 +12,12 @@ volumes:
   seaweedfs_master_data:
     driver: local
   seaweedfs_filer_data:
+    driver: local
+  redpanda_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
     driver: local
 
 services:
@@ -18,13 +30,56 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-supersecretpassword}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d cyber_audit"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: cyber-audit-redis
+    command: redis-server --maxmemory 256mb --maxmemory-policy volatile-ttl
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 256M
+    restart: unless-stopped
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: cyber-audit-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp 1
+      - --memory 1G
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --check=false
+      - --kafka-addr PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr PLAINTEXT://redpanda:9092
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
     restart: unless-stopped
 
   seaweedfs-master:
@@ -33,8 +88,13 @@ services:
     command: "master -ip=seaweedfs-master -ip.bind=0.0.0.0"
     volumes:
       - seaweedfs_master_data:/data
-    ports:
-      - "9333:9333"
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:9333/cluster/status"]
       interval: 5s
@@ -51,8 +111,13 @@ services:
         condition: service_healthy
     volumes:
       - seaweedfs_data:/data
-    ports:
-      - "8082:8082"
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     restart: unless-stopped
 
   seaweedfs-filer:
@@ -66,13 +131,69 @@ services:
         condition: service_started
     volumes:
       - seaweedfs_filer_data:/data
-    ports:
-      - "8888:8888"
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8888/"]
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  ingestion-api:
+    build:
+      context: ./ingestion_api
+      dockerfile: Dockerfile
+    container_name: cyber-audit-ingestion-api
+    depends_on:
+      - postgres
+      - redis
+      - redpanda
+    environment:
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKER: redpanda:9092
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-supersecretpassword}@postgres:5432/cyber_audit
+    ports:
+      - "8080:8080"
+    networks:
+      - public_net
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - redis
+      - redpanda
+      - seaweedfs-filer
+    environment:
+      REDIS_URL: redis://redis:6379
+      KAFKA_BROKER: redpanda:9092
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-supersecretpassword}@postgres:5432/cyber_audit
+      SEAWEEDFS_FILER_URL: http://seaweedfs-filer:8888
+      AI_PIPELINE_URL: http://ai-pipeline:8001
+    networks:
+      - private_net
+    deploy:
+      mode: replicated
+      replicas: 4
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
     restart: unless-stopped
 
   backend:
@@ -95,6 +216,14 @@ services:
       AI_PIPELINE_URL: http://ai-pipeline:8001
     ports:
       - "8000:8000"
+    networks:
+      - public_net
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
     restart: unless-stopped
 
   ai-pipeline:
@@ -102,8 +231,13 @@ services:
       context: ./ai_pipeline
       dockerfile: Dockerfile
     container_name: cyber-audit-ai-pipeline
-    ports:
-      - "8001:8001"
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
     restart: unless-stopped
 
   frontend:
@@ -117,20 +251,86 @@ services:
       - backend
     ports:
       - "3000:80"
+    networks:
+      - public_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     restart: unless-stopped
 
   adminer:
     image: adminer:latest
     container_name: cyber-audit-adminer
-    restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8081:8080"
     depends_on:
       - postgres
+    networks:
+      - public_net
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: unless-stopped
 
   clamav:
     image: clamav/clamav:latest
     container_name: cyber-audit-clamav
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
     restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cyber-audit-prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cyber-audit-grafana
     ports:
-      - "3310:3310"
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - public_net
+      - private_net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    restart: unless-stopped
+
+  custom-dashboard:
+    image: nginx:alpine
+    container_name: cyber-audit-dashboard
+    ports:
+      - "4000:80"
+    volumes:
+      - ./dashboard:/usr/share/nginx/html:ro
+    networks:
+      - public_net

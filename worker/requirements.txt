@@ -1,0 +1,6 @@
+asyncio
+confluent-kafka
+asyncpg
+redis
+
+prometheus-client

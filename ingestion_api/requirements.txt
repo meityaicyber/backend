@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+confluent-kafka
+redis
+asyncpg
+sqlalchemy
+pydantic
+pydantic-settings
+python-multipart
+pytest
+httpx
+
+prometheus-fastapi-instrumentator

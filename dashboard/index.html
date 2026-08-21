@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyber Audit Live Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <div class="pulse-indicator" id="pulse"></div>
+            <h1>Cyber Audit <span>Telemetry</span></h1>
+        </header>
+
+        <div class="metrics-grid">
+            <div class="metric-card glass">
+                <h3>Active Pipelines</h3>
+                <div class="value neon-blue" id="val-active">0</div>
+                <div class="subtext">/ <span id="val-max">2500</span> max</div>
+                <div class="progress-bar">
+                    <div class="progress-fill blue-grad" id="prog-active"></div>
+                </div>
+            </div>
+
+            <div class="metric-card glass">
+                <h3>Total Jobs Ingested</h3>
+                <div class="value neon-purple" id="val-total">0</div>
+                <div class="subtext">Since startup</div>
+            </div>
+
+            <div class="metric-card glass">
+                <h3>Currently Processing</h3>
+                <div class="value neon-yellow" id="val-processing">0</div>
+                <div class="subtext">In worker nodes</div>
+            </div>
+
+            <div class="metric-card glass">
+                <h3>Jobs Completed</h3>
+                <div class="value neon-green" id="val-completed">0</div>
+                <div class="subtext">100% Extracted & Parsed</div>
+            </div>
+            
+            <div class="metric-card glass">
+                <h3>Jobs Failed</h3>
+                <div class="value neon-red" id="val-failed">0</div>
+                <div class="subtext">Unrecoverable errors</div>
+            </div>
+        </div>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
