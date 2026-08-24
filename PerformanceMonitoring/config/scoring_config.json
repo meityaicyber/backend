@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "scoring_rule": {
+    "description": "Continuous performance score from 0 to 100 based on weighted features. Model prediction is explicitly separate.",
+    "weights": {
+      "audit_timeliness": 0.25,
+      "audit_efficiency": 0.15,
+      "error_rate": 0.15,
+      "agency_scale": 0.10,
+      "compliance_adherence": 0.25,
+      "past_renewal_status": 0.10
+    },
+    "feature_normalisation": {
+      "audit_timeliness": {"method": "passthrough", "formula": "val"},
+      "audit_efficiency": {"method": "invert_and_scale", "formula": "max(0, (365 - val) / 365 * 100)"},
+      "error_rate": {"method": "invert_and_scale", "formula": "max(0, 100 - (val / 50 * 100))"},
+      "agency_scale": {"method": "passthrough", "formula": "val"},
+      "compliance_adherence": {"method": "passthrough", "formula": "val"},
+      "past_renewal_status": {"method": "scale", "formula": "val * 100"}
+    },
+    "missing_feature_policy": {
+      "rule": "renormalize_weights",
+      "max_missing_allowed": 2,
+      "fallback": "not_assessable",
+      "justification": "If 1 or 2 features are missing, remaining feature weights are proportionally scaled to sum to 1. If >2 are missing, the agency's performance cannot be reliably measured."
+    }
+  },
+  "ranking_rule": {
+    "tie_breaker": "higher_compliance_wins",
+    "secondary_tie_breaker": "higher_timeliness_wins",
+    "justification": "Ties in continuous scores are broken by prioritizing compliance adherence, then timeliness, reflecting core regulatory priorities."
+  },
+  "classification_boundary": {
+    "decision_threshold": 0.50,
+    "epsilon": 0.05,
+    "boundary_status_labels": {
+      "normal": "normal",
+      "close_to_boundary": "close_to_decision_boundary"
+    },
+    "justification": "0.50 is the natural binary threshold. Epsilon of 0.05 flags any probability in [0.45, 0.55] as uncertain."
+  }
+}

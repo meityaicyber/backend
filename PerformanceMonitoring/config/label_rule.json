@@ -1,0 +1,20 @@
+{
+  "version": "1.0.0",
+  "synthetic_label_generation": {
+    "description": "Deterministic rule generating the renewal outcome (1=renewed, 0=not renewed) for the synthetic dataset.",
+    "latent_formula_weights": {
+      "audit_timeliness": 0.25,
+      "audit_efficiency": 0.20,
+      "error_rate": 0.20,
+      "agency_scale": 0.05,
+      "compliance_adherence": 0.20,
+      "past_renewal_status": 0.10
+    },
+    "latent_score_threshold": 0.60,
+    "noise_injection": {
+      "method": "flip_label_with_probability",
+      "probability": 0.05
+    },
+    "justification": "A weighted combination of normalized features produces a latent probability. Threshold of 0.60 ensures a realistic renewal rate (approx 70%). 5% noise simulates unobservable real-world factors affecting renewal decisions."
+  }
+}
