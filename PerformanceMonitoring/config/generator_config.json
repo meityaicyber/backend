@@ -1,0 +1,23 @@
+{
+  "version": "1.0.0",
+  "generator_settings": {
+    "population_size": 10000,
+    "default_seed": 42,
+    "features": {
+      "audit_timeliness": {"mean": 85.0, "std": 10.0, "min": 0.0, "max": 100.0},
+      "audit_efficiency": {"mean": 45.0, "std": 20.0, "min": 1.0, "max": 365.0},
+      "error_rate": {"mean": 5.0, "std": 3.0, "min": 0.0, "max": 50.0},
+      "agency_scale": {
+        "team_size": {"mean": 30.0, "std": 20.0, "min": 1, "max": 1000},
+        "years_experience": {"mean": 10.0, "std": 8.0, "min": 0, "max": 50}
+      },
+      "compliance_adherence": {"mean": 90.0, "std": 8.0, "min": 0.0, "max": 100.0},
+      "past_renewal_status": {"mean": 0.8, "std": 0.15, "min": 0.0, "max": 1.0}
+    },
+    "irregularity_rates": {
+      "missing_feature": 0.05,
+      "sparse_history": 0.03,
+      "outliers": 0.02
+    }
+  }
+}
