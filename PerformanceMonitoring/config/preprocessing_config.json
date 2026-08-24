@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "preprocessing": {
+    "missing_data_strategy": "median_imputation",
+    "scaling_method": "robust_scaler",
+    "train_test_split": {
+      "test_size": 0.2,
+      "random_state": 42
+    },
+    "cross_validation": {
+      "folds": 5
+    },
+    "justification": "Empirical tests (Phase 3) showed Median Imputation slightly outperformed Mean/Constant. RobustScaler was selected to mitigate sensitivity to outliers. Gradient Boosting natively handles unscaled data, but scaling standardizes inputs for SVM/NN."
+  }
+}

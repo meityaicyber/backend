@@ -1,0 +1,38 @@
+{
+  "classification_models": {
+    "baseline": {
+      "macro_f1": 0.4067
+    },
+    "gradient_boosting": {
+      "macro_f1": 0.8723
+    },
+    "neural_network": {
+      "macro_f1": 0.9224
+    },
+    "svm": {
+      "macro_f1": 0.8903
+    }
+  },
+  "missing_data_strategies": {
+    "constant_imputation": {
+      "macro_f1": 0.8671
+    },
+    "mean_imputation": {
+      "macro_f1": 0.8691
+    },
+    "median_imputation": {
+      "macro_f1": 0.8723
+    }
+  },
+  "scaling_strategies": {
+    "minmax_scaler": {
+      "macro_f1": 0.8483
+    },
+    "robust_scaler": {
+      "macro_f1": 0.9085
+    },
+    "standard_scaler": {
+      "macro_f1": 0.8903
+    }
+  }
+}

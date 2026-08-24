@@ -4,13 +4,13 @@
     "description": "Deterministic rule generating the renewal outcome (1=renewed, 0=not renewed) for the synthetic dataset.",
     "latent_formula_weights": {
       "audit_timeliness": 0.25,
-      "audit_efficiency": 0.20,
-      "error_rate": 0.20,
+      "audit_efficiency": 0.2,
+      "error_rate": 0.2,
       "agency_scale": 0.05,
-      "compliance_adherence": 0.20,
-      "past_renewal_status": 0.10
+      "compliance_adherence": 0.2,
+      "past_renewal_status": 0.1
     },
-    "latent_score_threshold": 0.60,
+    "latent_score_threshold": 0.825,
     "noise_injection": {
       "method": "flip_label_with_probability",
       "probability": 0.05
