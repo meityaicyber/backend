@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "dataset_size": 10000,
+    "model_version": "1.0.0",
+    "split_random_state": 42,
+    "test_size": 2000
+  },
+  "metrics": {
+    "accuracy": 0.6855,
+    "confusion_matrix": [
+      [
+        0,
+        629
+      ],
+      [
+        0,
+        1371
+      ]
+    ],
+    "macro_f1": 0.40670424206466926,
+    "precision_macro": 0.34275,
+    "recall_macro": 0.5
+  },
+  "model": "baseline",
+  "per_class": {
+    "0": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0
+    },
+    "1": {
+      "f1": 0.8134084841293385,
+      "precision": 0.6855,
+      "recall": 1.0
+    }
+  }
+}

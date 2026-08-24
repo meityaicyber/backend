@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "dataset_size": 10000,
+    "model_version": "1.0.0",
+    "split_random_state": 42,
+    "test_size": 2000
+  },
+  "metrics": {
+    "accuracy": 0.8955,
+    "confusion_matrix": [
+      [
+        469,
+        160
+      ],
+      [
+        49,
+        1322
+      ]
+    ],
+    "macro_f1": 0.8722646529708706,
+    "precision_macro": 0.8987215960900171,
+    "recall_macro": 0.8549438227002908
+  },
+  "model": "gradient_boosting",
+  "per_class": {
+    "0": {
+      "f1": 0.8177855274629469,
+      "precision": 0.9054054054054054,
+      "recall": 0.7456279809220986
+    },
+    "1": {
+      "f1": 0.9267437784787943,
+      "precision": 0.8920377867746289,
+      "recall": 0.9642596644784829
+    }
+  }
+}

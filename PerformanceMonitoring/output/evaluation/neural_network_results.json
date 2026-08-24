@@ -1,0 +1,37 @@
+{
+  "metadata": {
+    "dataset_size": 10000,
+    "model_version": "1.0.0",
+    "split_random_state": 42,
+    "test_size": 2000
+  },
+  "metrics": {
+    "accuracy": 0.935,
+    "confusion_matrix": [
+      [
+        530,
+        99
+      ],
+      [
+        31,
+        1340
+      ]
+    ],
+    "macro_f1": 0.9222464786626394,
+    "precision_macro": 0.9379718783716657,
+    "recall_macro": 0.9099980402593352
+  },
+  "model": "neural_network",
+  "per_class": {
+    "0": {
+      "f1": 0.8907563025210085,
+      "precision": 0.9447415329768271,
+      "recall": 0.8426073131955485
+    },
+    "1": {
+      "f1": 0.9537366548042705,
+      "precision": 0.9312022237665045,
+      "recall": 0.9773887673231219
+    }
+  }
+}
