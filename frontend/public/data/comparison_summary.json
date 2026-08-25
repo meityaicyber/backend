@@ -1,0 +1,18 @@
+{
+  "baseline": {
+    "accuracy": 0.6855,
+    "macro_f1": 0.40670424206466926
+  },
+  "gradient_boosting": {
+    "accuracy": 0.8955,
+    "macro_f1": 0.8722646529708706
+  },
+  "neural_network": {
+    "accuracy": 0.935,
+    "macro_f1": 0.9222464786626394
+  },
+  "svm": {
+    "accuracy": 0.925,
+    "macro_f1": 0.9101097739440596
+  }
+}

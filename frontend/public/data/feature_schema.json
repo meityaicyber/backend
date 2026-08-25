@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "features": {
+    "audit_timeliness": {
+      "description": "Proportion of audit reports delivered on schedule",
+      "unit": "percentage",
+      "range": [0, 100],
+      "direction": "higher_is_better",
+      "missing_rule": "record_not_assessable",
+      "outlier_rule": "strictly_enforce_range",
+      "justification": "Percentage directly represents proportion. Range 0-100 is standard. Higher is better for timeliness."
+    },
+    "audit_efficiency": {
+      "description": "Average duration taken to complete an audit",
+      "unit": "days",
+      "range": [1, 365],
+      "direction": "lower_is_better",
+      "missing_rule": "record_not_assessable",
+      "outlier_rule": "values_above_365_are_not_assessable",
+      "justification": "Audit durations usually span days. 1-365 days covers all reasonable annual audits. Lower duration means higher efficiency."
+    },
+    "error_rate": {
+      "description": "Number of discrepancies identified in audit reports",
+      "unit": "errors_per_report",
+      "range": [0, 50],
+      "direction": "lower_is_better",
+      "missing_rule": "record_not_assessable",
+      "outlier_rule": "values_above_50_are_not_assessable",
+      "justification": "Measured as a count per report. >50 errors implies a fundamentally broken report, treated as invalid data."
+    },
+    "agency_scale": {
+      "description": "Composite score based on team size and years of operational experience",
+      "components": {
+        "team_size": {"unit": "people", "range": [1, 1000]},
+        "years_experience": {"unit": "years", "range": [0, 100]}
+      },
+      "formula": "0.5 * min((team_size/100)*100, 100) + 0.5 * min((years_experience/20)*100, 100)",
+      "unit": "scale_index",
+      "range": [0, 100],
+      "direction": "higher_is_better",
+      "missing_rule": "if_any_component_missing_record_not_assessable",
+      "outlier_rule": "clamp_components_to_max_before_formula",
+      "justification": "Composite index 0-100 weighting size (capped at 100) and experience (capped at 20 years) equally."
+    },
+    "compliance_adherence": {
+      "description": "Level of adherence to established auditing standards",
+      "unit": "percentage",
+      "range": [0, 100],
+      "direction": "higher_is_better",
+      "missing_rule": "record_not_assessable",
+      "outlier_rule": "strictly_enforce_range",
+      "justification": "Compliance is naturally evaluated as a percentage of requirements met."
+    },
+    "past_renewal_status": {
+      "description": "Historical record of empanelment renewals and revocations",
+      "unit": "renewal_ratio",
+      "range": [0, 1],
+      "direction": "higher_is_better",
+      "sparse_history_rule": "if_history_less_than_2_decisions_record_not_assessable",
+      "missing_rule": "record_not_assessable",
+      "outlier_rule": "strictly_enforce_range",
+      "justification": "Ratio of renewals to total decisions. Sparse history (<2 decisions) is insufficient for a reliable ratio."
+    }
+  }
+}

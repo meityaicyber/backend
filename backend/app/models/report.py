@@ -1,10 +1,13 @@
 import uuid
 from datetime import datetime, timezone
 
+# pyrefly: ignore [missing-import]
 from sqlalchemy import (
     Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric
 )
+# pyrefly: ignore [missing-import]
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import relationship
 import enum
 
@@ -180,18 +183,18 @@ class PartialDuplicate(Base):
 
 
 class SeverityLevel(str, enum.Enum):
-    CRITICAL = 'Critical'
-    HIGH = 'High'
-    MEDIUM = 'Medium'
-    LOW = 'Low'
-    INFORMATIONAL = 'Informational'
+    CRITICAL = 'CRITICAL'
+    HIGH = 'HIGH'
+    MEDIUM = 'MEDIUM'
+    LOW = 'LOW'
+    INFORMATIONAL = 'INFORMATIONAL'
 
 class VulnStatus(str, enum.Enum):
-    OPEN = 'Open'
-    CLOSED = 'Closed'
-    ACCEPTED = 'Accepted'
-    RISK_ACCEPTED = 'Risk Accepted'
-    IN_PROGRESS = 'In Progress'
+    OPEN = 'OPEN'
+    CLOSED = 'CLOSED'
+    ACCEPTED = 'ACCEPTED'
+    RISK_ACCEPTED = 'RISK_ACCEPTED'
+    IN_PROGRESS = 'IN_PROGRESS'
 
 class ReportsData(Base):
     __tablename__ = "reports_data"

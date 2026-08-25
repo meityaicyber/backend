@@ -16,6 +16,7 @@ import UserManagementPage from './pages/UserManagementPage';
 import AgencyManagementPage from './pages/AgencyManagementPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
+import PerformanceMonitoringPage from './pages/PerformanceMonitoringPage';
 
 function App() {
   const { loading } = useAuth();
@@ -46,6 +47,7 @@ function App() {
           <Route path="/upload" element={<UploadReportPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportDetailPage />} />
+          <Route path="/performance" element={<PerformanceMonitoringPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route
             path="/users"

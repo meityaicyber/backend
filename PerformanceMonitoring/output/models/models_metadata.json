@@ -1,11 +1,11 @@
 {
   "baseline": {
-    "artifact_path": "output/models\\baseline.joblib",
+    "artifact_path": "output\\models\\baseline.joblib",
     "hyperparameters": {},
     "version": "1.0.0"
   },
   "gradient_boosting": {
-    "artifact_path": "output/models\\gradient_boosting.joblib",
+    "artifact_path": "output\\models\\gradient_boosting.joblib",
     "hyperparameters": {
       "model__max_depth": 3,
       "model__n_estimators": 100
@@ -13,7 +13,7 @@
     "version": "1.0.0"
   },
   "neural_network": {
-    "artifact_path": "output/models\\neural_network.joblib",
+    "artifact_path": "output\\models\\neural_network.joblib",
     "hyperparameters": {
       "model__hidden_layer_sizes": [
         16,
@@ -23,7 +23,7 @@
     "version": "1.0.0"
   },
   "svm": {
-    "artifact_path": "output/models\\svm.joblib",
+    "artifact_path": "output\\models\\svm.joblib",
     "hyperparameters": {
       "model__estimator__C": 1.0
     },

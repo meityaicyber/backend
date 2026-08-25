@@ -1,0 +1,32 @@
+{
+  "version": "1.0.0",
+  "models": {
+    "baseline": {
+      "strategy": "most_frequent"
+    },
+    "gradient_boosting": {
+      "random_state": 42,
+      "search_space": {
+        "n_estimators": [50, 100],
+        "max_depth": [3, 5]
+      }
+    },
+    "svm": {
+      "random_state": 42,
+      "probability": true,
+      "calibration": "CalibratedClassifierCV",
+      "search_space": {
+        "C": [0.1, 1.0]
+      }
+    },
+    "neural_network": {
+      "random_state": 42,
+      "max_iter": 500,
+      "search_space": {
+        "hidden_layer_sizes": [[16, 8], [32, 16]]
+      }
+    }
+  },
+  "selected_model": "gradient_boosting",
+  "justification": "While Neural Network achieved higher empirical Macro-F1 (0.92 vs 0.87), Gradient Boosting is selected for the final classification because it provides clear feature importance (interpretability), requires less compute, and fails gracefully without scaling sensitivity."
+}

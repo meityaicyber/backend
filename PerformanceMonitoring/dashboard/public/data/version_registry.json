@@ -1,0 +1,30 @@
+{
+  "current_versions": {
+    "feature_schema": "1.0.0",
+    "generator_config": "1.0.0",
+    "label_rule": "1.0.0",
+    "model_config": "1.0.0",
+    "preprocessing_config": "1.0.0",
+    "scoring_config": "1.1.0"
+  },
+  "history": [
+    {
+      "approver": "system",
+      "change": "Initial creation",
+      "timestamp": "2026-08-24T11:45:00+05:30",
+      "updated_components": []
+    },
+    {
+      "approver": "system",
+      "change": "Updated timeliness weight",
+      "timestamp": "2026-08-24T11:49:57.299343",
+      "updated_components": [
+        {
+          "component": "scoring_config",
+          "new_version": "1.1.0",
+          "old_version": "1.0.0"
+        }
+      ]
+    }
+  ]
+}

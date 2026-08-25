@@ -1,0 +1,257 @@
+{
+  "commit": "HEAD",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "aa537bb4541448bb0deb5ed99492f281633fd318afd5bcb0f3fab7e54d6ac0bb"
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "d085c204fbee2c7566fac18cc5fae5ed886a25a45d11f945a42f1de2cee98ffd"
+    },
+    {
+      "path": ".pytest_cache\\.gitignore",
+      "sha256": "3ed731b65d06150c138e2dadb0be0697550888a6b47eb8c45ecc9adba8b8e9bd"
+    },
+    {
+      "path": ".pytest_cache\\CACHEDIR.TAG",
+      "sha256": "37dc88ef9a0abeddbe81053a6dd8fdfb13afb613045ea1eb4a5c815a74a3bde4"
+    },
+    {
+      "path": ".pytest_cache\\README.md",
+      "sha256": "73fd6fccdd802c419a6b2d983d6c3173b7da97558ac4b589edec2dfe443db9ad"
+    },
+    {
+      "path": ".pytest_cache\\v\\cache\\lastfailed",
+      "sha256": "467d7bfb8d7c8d67718f96a9d1382711cd833b488f830719689250bb8ee55394"
+    },
+    {
+      "path": ".pytest_cache\\v\\cache\\nodeids",
+      "sha256": "11611e1d416da305601eadc2671b3da6fc5992c5d3e50d372e3cb2024ad99053"
+    },
+    {
+      "path": "config\\feature_schema.json",
+      "sha256": "c8962c983a906e67c419a35d8b046379c7ec150eab82629a5827f50aeb386e6a"
+    },
+    {
+      "path": "config\\generator_config.json",
+      "sha256": "87c09a2b95f6bef00875b9cae033b27c85db296ccb200fafd28df382e2779a05"
+    },
+    {
+      "path": "config\\label_rule.json",
+      "sha256": "99e145a8b6e1477ce0d76bfa3e3a5321a4d9b27090306624c56868743f221fea"
+    },
+    {
+      "path": "config\\model_config.json",
+      "sha256": "73ef92d75c5ee564f5a91710fcb546259e5b60529d364e44e83b98667ee3923e"
+    },
+    {
+      "path": "config\\preprocessing_config.json",
+      "sha256": "eb6a7a756b1070710fba2da8f2ed6c066d368ddd902c6f1eb93d0736d8700e73"
+    },
+    {
+      "path": "config\\scoring_config.json",
+      "sha256": "f67ff8fc4f32f21e2dda4ad4e47712482ef5ffbbcc53fd967e49c30f884e5f9d"
+    },
+    {
+      "path": "config\\version_registry.json",
+      "sha256": "a5bcf6fbf0bb6235cb65b5c55a50b155dec376c1eabcb248efd83c4f0abd2f69"
+    },
+    {
+      "path": "data\\sample_dataset.json",
+      "sha256": "4ed9ffc20acecb44f0efa4af9965bde50dd065ca1894d070923ed039f88e72bf"
+    },
+    {
+      "path": "deploy\\build_offline_package.py",
+      "sha256": "85e6f9fef374fe6122418a3a07bb3fa9dc74e39816fda795e1bc315d37dc0060"
+    },
+    {
+      "path": "deploy\\install_offline.bat",
+      "sha256": "00fb7da264cbf92afdc8592412bc00c562043e8eb9c8bc769f6b269e2e77d696"
+    },
+    {
+      "path": "deploy\\update_process.md",
+      "sha256": "1616d049eefe07428b8b703169e72341b265b33dae3c750c7aa00291b7d435b7"
+    },
+    {
+      "path": "deploy\\verify_install.py",
+      "sha256": "50c65e298904ff56055c978bedd15c03e803f4b7a0ed8d508118e4cf5c1306e4"
+    },
+    {
+      "path": "docs\\D10_design_and_derivation.md",
+      "sha256": "a6e7fd97700a2a6f305fc6607b75dd7cf0cf83fd28f2fce6b0816181e81a7e5a"
+    },
+    {
+      "path": "docs\\D11_runbook.md",
+      "sha256": "126e0ce76ab1de769f543b13d02cf43e14e527f5143ebdea76f4596706fb7161"
+    },
+    {
+      "path": "docs\\D12_results_analysis.md",
+      "sha256": "2516c0fb4d7d07e78b3666fcb9f66c795cee5dd5b79d9ad5be9d9bd22b34af12"
+    },
+    {
+      "path": "docs\\D13_comparative_study.md",
+      "sha256": "00b451effe84cae6300f3d969fa398e5187fb01338f0169772e0110264b62a1e"
+    },
+    {
+      "path": "docs\\D1_feature_definition.md",
+      "sha256": "d2fa9e5d88396c507c14b57082f4775e788fea9efd5850605c4a6be231f9e719"
+    },
+    {
+      "path": "output\\experiment_results.json",
+      "sha256": "651a474d1ad95b77ef456e3a48ea77449b450d0491babfcce4e89e47bd7c6371"
+    },
+    {
+      "path": "output\\evaluation\\baseline_results.json",
+      "sha256": "1082171d317b9b813b4b8549fa4cfa99899effd943d8351326908df385497390"
+    },
+    {
+      "path": "output\\evaluation\\comparison_summary.json",
+      "sha256": "96dc22dc4e9b32025c8899be65769418d58a6b292f2ebf731d02c98a1a2873e0"
+    },
+    {
+      "path": "output\\evaluation\\gradient_boosting_results.json",
+      "sha256": "326006ee52d4fd295eb9c275aedba670a2787eea44b1339d31821dc9459774ad"
+    },
+    {
+      "path": "output\\evaluation\\neural_network_results.json",
+      "sha256": "4e4c17b9d81af6e2b6803de1d12473b748a946527ffe523858c787445ab456b3"
+    },
+    {
+      "path": "output\\evaluation\\svm_results.json",
+      "sha256": "a989cc466964db7f5e12744b220fa5124d5266a496438e86c81cf5d3d4a84b52"
+    },
+    {
+      "path": "output\\models\\baseline.joblib",
+      "sha256": "0678312d383d24446ec4a1d72ad96366c42c961fe747418cbf41cba992e2dd21"
+    },
+    {
+      "path": "output\\models\\gradient_boosting.joblib",
+      "sha256": "e77f33dff26d245220bde4bac3480e6e6052f7b810254f6958558b36e099d696"
+    },
+    {
+      "path": "output\\models\\models_metadata.json",
+      "sha256": "08fde037b62486948b1817413090ab6a538907805deabe55f480b146351d634e"
+    },
+    {
+      "path": "output\\models\\neural_network.joblib",
+      "sha256": "acbd754ca024ae81cc8ff94a3e10e028283623a30fea9f9f76e907181aa32a29"
+    },
+    {
+      "path": "output\\models\\svm.joblib",
+      "sha256": "6c783b2b767332f361fae65dda1c36c86ba2864fde09d426f0376b65ceac8e0c"
+    },
+    {
+      "path": "output\\scoring\\organisation_scores.json",
+      "sha256": "486455faa14699bb98d383eb6dcc25cd8844ff4edab1139910e1bbdac13790f1"
+    },
+    {
+      "path": "output\\scoring\\ranking_summary.json",
+      "sha256": "cad92a1a4066c104e0d1fa56f0011055247662d9e563004c9fda468511681d42"
+    },
+    {
+      "path": "src\\dataset_generator.py",
+      "sha256": "4dcff1724ca3e9f2907b120d4d4452a55333c37c0a79bf8c2098420e7edbde30"
+    },
+    {
+      "path": "src\\experiments.py",
+      "sha256": "5d82a413475ac96c09bd249cfa86b06847787bf16968576846d4b58f2e03dd94"
+    },
+    {
+      "path": "src\\run_pipeline.py",
+      "sha256": "a35d235f3cfe03636d9b9e68555687b027afdccf937a8abef980be1266b5e736"
+    },
+    {
+      "path": "src\\__init__.py",
+      "sha256": "e04e38d8da069c9c3d544e45ec91ce44cdc1a76ff5f8cf8b972ac3166e368911"
+    },
+    {
+      "path": "src\\models\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src\\pipeline\\evaluate.py",
+      "sha256": "d355bdca7e4462d298c6aac2b2b74b7180a9924cf5498a8bcda8aa4d0471c216"
+    },
+    {
+      "path": "src\\pipeline\\score.py",
+      "sha256": "77d9850c107a69a0449ed50e60c7f73b62aaf09dc64dc07a93256c9573cca6e6"
+    },
+    {
+      "path": "src\\pipeline\\train.py",
+      "sha256": "e42c93f768eb5b38a9aebec2c6fe2cdcbd15d5bf949b07f9c32db607553f7d7c"
+    },
+    {
+      "path": "src\\pipeline\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "src\\utils\\json_utils.py",
+      "sha256": "b40b4f9f819c764054e826166b7547f0310801bd50e8ec8c3d82474e1bae7319"
+    },
+    {
+      "path": "src\\utils\\__init__.py",
+      "sha256": "4f4f602f90b36b1c66e38570b376b52496956e53590613d455f0a4418da784cb"
+    },
+    {
+      "path": "src\\versioning\\cli.py",
+      "sha256": "62d60be90916d167a47884ce95c61fb3fe632dd87958ce525d4bedbad79c4c50"
+    },
+    {
+      "path": "src\\versioning\\__init__.py",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "tests\\test_acceptance.py",
+      "sha256": "37c869d48b86be6c08dc2a543364a2ff73718ef75e936f14b8c7e1444fb6daf2"
+    },
+    {
+      "path": "vendor\\colorama-0.4.6-py2.py3-none-any.whl",
+      "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
+    },
+    {
+      "path": "vendor\\iniconfig-2.3.0-py3-none-any.whl",
+      "sha256": "f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12"
+    },
+    {
+      "path": "vendor\\joblib-1.5.3-py3-none-any.whl",
+      "sha256": "5fc3c5039fc5ca8c0276333a188bbd59d6b7ab37fe6632daa76bc7f9ec18e713"
+    },
+    {
+      "path": "vendor\\narwhals-2.25.0-py3-none-any.whl",
+      "sha256": "1f0f403e8c7e4463cde9bfe78b12fdd809e3ae3dda6d9b2f802934fb9c7a6a8f"
+    },
+    {
+      "path": "vendor\\numpy-2.5.2-cp314-cp314-win_amd64.whl",
+      "sha256": "7587f53dfbd5edc0f7b87c6217b4c6d2d1f2ef9c3da70bc1315e7db5f8d7ec9d"
+    },
+    {
+      "path": "vendor\\packaging-26.3-py3-none-any.whl",
+      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+    },
+    {
+      "path": "vendor\\pluggy-1.6.0-py3-none-any.whl",
+      "sha256": "e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746"
+    },
+    {
+      "path": "vendor\\pygments-2.21.0-py3-none-any.whl",
+      "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
+    },
+    {
+      "path": "vendor\\pytest-9.1.1-py3-none-any.whl",
+      "sha256": "37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c"
+    },
+    {
+      "path": "vendor\\scikit_learn-1.9.0-cp314-cp314-win_amd64.whl",
+      "sha256": "64fa347efc1c839c487433e40c5144d38c336e8a2b59c81aa8660373945c2673"
+    },
+    {
+      "path": "vendor\\scipy-1.18.1-cp314-cp314-win_amd64.whl",
+      "sha256": "78a0d7c918e74a232394117160e7e3db503377572a45bcef8826e4ab8a35feba"
+    },
+    {
+      "path": "vendor\\threadpoolctl-3.6.0-py3-none-any.whl",
+      "sha256": "43a0b8fd5a2928500110039e43a5eed8480b918967083ea48dc3ab9f13c4a7fb"
+    }
+  ]
+}

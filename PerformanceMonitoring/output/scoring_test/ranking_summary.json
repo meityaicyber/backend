@@ -1,0 +1,382 @@
+{
+  "bottom_10": [
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_06087",
+      "performance_score": 53.92,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9991,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.2548
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_06026",
+      "performance_score": 53.92,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9992,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.3376
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_01926",
+      "performance_score": 53.49,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9993,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.3994
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_08358",
+      "performance_score": 53.45,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9994,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.3829
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [
+        "error_rate"
+      ],
+      "organisation_id": "ORG_04643",
+      "performance_score": 53.17,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9995,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.3196
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_09490",
+      "performance_score": 53.02,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9996,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.2324
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_06964",
+      "performance_score": 50.86,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9997,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.0529
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [
+        "audit_efficiency"
+      ],
+      "organisation_id": "ORG_00187",
+      "performance_score": 50.21,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9998,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.7482
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_05094",
+      "performance_score": 49.84,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9999,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.0302
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [
+        "compliance_adherence"
+      ],
+      "organisation_id": "ORG_05660",
+      "performance_score": 44.46,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 10000,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "not_renewed",
+        "probability": 0.3558
+      }
+    }
+  ],
+  "metadata": {
+    "assessable_organisations": 10000,
+    "provenance": {
+      "feature_schema_version": "1.0.0",
+      "model_version": "gradient_boosting_1.0.0",
+      "run_id": "run_9d1c2634",
+      "scoring_config_version": "1.0.0"
+    },
+    "total_organisations": 10000
+  },
+  "top_10": [
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_01232",
+      "performance_score": 96.99,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 1,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.985
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_02106",
+      "performance_score": 95.39,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 2,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9742
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_07572",
+      "performance_score": 95.0,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 3,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9904
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_07784",
+      "performance_score": 94.2,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 4,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9798
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_02725",
+      "performance_score": 93.89,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 5,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9863
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_03052",
+      "performance_score": 93.83,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 6,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9813
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_03050",
+      "performance_score": 93.59,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 7,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9855
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_02469",
+      "performance_score": 93.55,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 8,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9877
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_03162",
+      "performance_score": 93.47,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 9,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9831
+      }
+    },
+    {
+      "assessment_status": "assessable",
+      "missing_features": [],
+      "organisation_id": "ORG_04151",
+      "performance_score": 93.41,
+      "provenance": {
+        "feature_schema_version": "1.0.0",
+        "model_version": "gradient_boosting_1.0.0",
+        "run_id": "run_9d1c2634",
+        "scoring_config_version": "1.0.0"
+      },
+      "rank": 10,
+      "renewal_prediction": {
+        "boundary_status": "normal",
+        "class": "renewed",
+        "probability": 0.9841
+      }
+    }
+  ]
+}

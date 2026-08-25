@@ -8,6 +8,10 @@ import sys
 from src.utils.json_utils import load_json, save_json
 
 def run_cmd(cmd):
+    if sys.platform == "win32":
+        cmd = f"set PYTHONPATH=. && {cmd}"
+    else:
+        cmd = f"PYTHONPATH=. {cmd}"
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     assert result.returncode == 0, f"Command failed: {cmd}\nOutput: {result.stderr}"
     return result.stdout
@@ -25,21 +29,24 @@ def setup_test_env(tmp_path_factory):
                 shutil.copy2(item, basetemp / item)
                 
     python_exec = sys.executable
+    # Run the pipeline once to populate output/
+    cmd = f'"{python_exec}" -m src.run_pipeline --config config/generator_config.json --dataset data/sample_dataset.json --output output'
+    if sys.platform == "win32":
+        full_cmd = f'cd "{basetemp}" && set PYTHONPATH=. && {cmd}'
+    else:
+        full_cmd = f'cd "{basetemp}" && PYTHONPATH=. {cmd}'
+    subprocess.run(full_cmd, shell=True, check=True)
     return basetemp, python_exec
 
 def test_1_fresh_clone(setup_test_env):
-    # Since we are in the temp dir, we will run the pipeline directly
     basetemp, python_exec = setup_test_env
-    cmd = f"{python_exec} -m src.run_pipeline --config config/generator_config.json --dataset data/sample_dataset.json --output output"
-    run_cmd(f"cd {basetemp} && {cmd}")
-    
     assert os.path.exists(basetemp / "output" / "scoring" / "organisation_scores.json")
 
 def test_2_offline_install(setup_test_env):
     basetemp, python_exec = setup_test_env
     # Just run the verification script which simulates offline validation
-    cmd = f"{python_exec} deploy/verify_install.py"
-    output = run_cmd(f"cd {basetemp} && {cmd}")
+    cmd = f'"{python_exec}" deploy/verify_install.py'
+    output = run_cmd(f'cd "{basetemp}" && {cmd}')
     assert "ALL VERIFICATIONS PASSED" in output
 
 def test_3_feature_coverage(setup_test_env):
@@ -55,8 +62,8 @@ def test_4_determinism(setup_test_env):
     basetemp, python_exec = setup_test_env
     
     def run_and_hash():
-        cmd = f"{python_exec} -m src.dataset_generator -n 10 --output data/det_dataset.json --seed 42"
-        run_cmd(f"cd {basetemp} && {cmd}")
+        cmd = f'"{python_exec}" -m src.dataset_generator -n 10 --output data/det_dataset.json --seed 42'
+        run_cmd(f'cd "{basetemp}" && {cmd}')
         with open(basetemp / "data" / "det_dataset.json", "rb") as f:
             return hashlib.sha256(f.read()).hexdigest()
             
@@ -68,8 +75,8 @@ def test_4_determinism(setup_test_env):
 def test_5_config_independence(setup_test_env):
     basetemp, python_exec = setup_test_env
     # Run once to get baseline scores
-    cmd = f"{python_exec} -m src.pipeline.score --config-scoring config/scoring_config.json --config-schema config/feature_schema.json --models-meta output/models/models_metadata.json --dataset data/sample_dataset.json --output output/score_1"
-    run_cmd(f"cd {basetemp} && {cmd}")
+    cmd = f'"{python_exec}" -m src.pipeline.score --config-scoring config/scoring_config.json --config-schema config/feature_schema.json --models-meta output/models/models_metadata.json --dataset data/sample_dataset.json --output output/score_1'
+    run_cmd(f'cd "{basetemp}" && {cmd}')
     
     scores1 = load_json(basetemp / "output" / "score_1" / "organisation_scores.json")
     
@@ -80,8 +87,8 @@ def test_5_config_independence(setup_test_env):
     save_json(config, basetemp / "config" / "scoring_config.json")
     
     # Run again
-    cmd = f"{python_exec} -m src.pipeline.score --config-scoring config/scoring_config.json --config-schema config/feature_schema.json --models-meta output/models/models_metadata.json --dataset data/sample_dataset.json --output output/score_2"
-    run_cmd(f"cd {basetemp} && {cmd}")
+    cmd = f'"{python_exec}" -m src.pipeline.score --config-scoring config/scoring_config.json --config-schema config/feature_schema.json --models-meta output/models/models_metadata.json --dataset data/sample_dataset.json --output output/score_2'
+    run_cmd(f'cd "{basetemp}" && {cmd}')
     
     scores2 = load_json(basetemp / "output" / "score_2" / "organisation_scores.json")
     
@@ -103,8 +110,9 @@ def test_6_irregular_input(setup_test_env):
 
 def test_7_versioning(setup_test_env):
     basetemp, python_exec = setup_test_env
-    cmd = f"{python_exec} -m src.versioning.cli create --change 'test bump' --approver 'test' --component 'scoring_config' --file config/scoring_config.json --new-version '2.0.0'"
-    run_cmd(f"cd {basetemp} && {cmd}")
+    cmd = f'"{python_exec}" -m src.versioning.cli create --change "test bump" --approver "test" --component "scoring_config" --file config/scoring_config.json --new-version "2.0.0"'
+    run_cmd(f'cd "{basetemp}" && {cmd}')
+
     
     registry = load_json(basetemp / "config" / "version_registry.json")
     assert registry["current_versions"]["scoring_config"] == "2.0.0"
