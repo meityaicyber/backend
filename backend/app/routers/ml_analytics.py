@@ -1,103 +1,375 @@
-import io
-from fastapi import APIRouter, UploadFile, File, HTTPException, status
+import uuid
+import math
+import asyncio
+import numpy as np
+import pandas as pd
+from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
 
-try:
-    import joblib
-    import pandas as pd
-except ImportError:
-    joblib = None
-    pd = None
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, Float, case
+from sqlalchemy.orm import selectinload
+
+from app.database import get_db
+from app.dependencies import get_current_user
+from app.models.user import User
+from app.models.report import Report, ReportsData, Vulnerability, SeverityLevel, VulnStatus
+from app.models.agency import Agency
+
+# Deep Learning / Advanced ML Libraries
+from transformers import pipeline
+from prophet import Prophet
+import hdbscan
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import IsolationForest
+import torch
 
 router = APIRouter(prefix="/api/ml", tags=["Machine Learning"])
 
-MODEL_PATH = "models/rf_severity_pipeline.joblib"
-rf_pipeline = None
+# Lazy loading the HF Pipeline to save memory during tests if unused
+_nlp_pipeline = None
 
-if joblib is not None:
-    try:
-        rf_pipeline = joblib.load(MODEL_PATH)
-    except Exception:
-        rf_pipeline = None
-
-# These must match exactly what the model was trained on
-RAW_NUMERIC_FEATURES = ["cvss_score"]
-RAW_CATEGORICAL_FEATURES = [
-    "category",
-    "status",  
-    "new_or_repeat",
-    "revalidation_status",
-    "cwe_ids",
-]
-EXPECTED_COLUMNS = RAW_NUMERIC_FEATURES + RAW_CATEGORICAL_FEATURES
-
-@router.post("/predict-severity")
-async def predict_severity(file: UploadFile = File(...)):
-    """
-    Accepts a CSV file of vulnerabilities, runs the Random Forest model,
-    and returns the predicted severity for each row.
-    """
-    if pd is None or joblib is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Required ML dependencies (pandas, joblib, scikit-learn) are missing on backend."
-        )
-
-    if not file.filename.endswith('.csv'):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Invalid file type. Only CSV files are supported."
-        )
-        
-    if rf_pipeline is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail=f"Model artifact not found at '{MODEL_PATH}'. Please ensure the model is trained and saved."
-        )
-        
-    try:
-        # 1. Dynamic File Handling (In-memory)
-        contents = await file.read()
-        df = pd.read_csv(io.BytesIO(contents))
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail=f"Error parsing CSV file: {str(e)}"
-        )
-
-    # 2. Error Handling (Missing Columns)
-    # This specifically catches the cvss_score vs cvssscore mismatch or other schema issues
-    missing_columns = [col for col in EXPECTED_COLUMNS if col not in df.columns]
-    
-    if missing_columns:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail=(
-                f"Missing expected columns in the uploaded CSV: {', '.join(missing_columns)}. "
-                f"Required schema: {', '.join(EXPECTED_COLUMNS)}"
+def get_nlp_pipeline():
+    global _nlp_pipeline
+    if _nlp_pipeline is None:
+        try:
+            # We use facebook/bart-large-mnli as requested
+            print("Loading Transformer Model into memory...")
+            pipe = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+            
+            # OPTIMIZATION 1: PyTorch Dynamic INT8 Quantization
+            # Converts the heavy 32-bit Linear layers into 8-bit integers.
+            # This cuts memory footprint by ~50% and vastly accelerates CPU inference.
+            print("Applying dynamic INT8 quantization to model...")
+            quantized_model = torch.quantization.quantize_dynamic(
+                pipe.model, {torch.nn.Linear}, dtype=torch.qint8
             )
-        )
+            pipe.model = quantized_model
+            _nlp_pipeline = pipe
+            print("Model quantized and ready.")
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to load/quantize NLP model: {e}")
+    return _nlp_pipeline
+
+
+@router.get("/forecast")
+async def forecast_trends(
+    months: int = Query(6, ge=1, le=12),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Task 1: Trend Analysis (Time Series Forecasting)
+    Upgraded to Facebook Prophet for robust feature engineering (seasonality, trend shifts).
+    """
+    query = select(ReportsData.report_date, func.count(Vulnerability.vuln_id).label("count")).select_from(ReportsData).join(Vulnerability, ReportsData.report_id == Vulnerability.report_id).group_by(ReportsData.report_date).order_by(ReportsData.report_date)
+    result = await db.execute(query)
+    rows = result.all()
+    
+    if not rows or len(rows) < 5:
+        return {"status": "insufficient_data", "message": "Need at least 5 distinct dates to forecast."}
+        
+    df = pd.DataFrame([{"ds": pd.to_datetime(r.report_date), "y": r.count} for r in rows])
+    
+    # Aggregate monthly
+    df = df.set_index('ds').resample('ME').sum().fillna(0).reset_index()
+    
+    if len(df) < 3:
+        return {"status": "insufficient_data", "message": "Need data spanning at least 3 months to forecast trends."}
         
     try:
-        # 3. Inference Only
-        X_inference = df[EXPECTED_COLUMNS]
-        predictions = rf_pipeline.predict(X_inference)
+        # Fit Prophet
+        m = Prophet(yearly_seasonality=False, weekly_seasonality=False, daily_seasonality=False)
+        m.fit(df)
+        future = m.make_future_dataframe(periods=months, freq='ME')
+        forecast = m.predict(future)
         
-        # 4. Web-Safe Outputs (Structured JSON)
-        df['predicted_severity'] = predictions
+        # Format response
+        historical = [{"date": row['ds'].strftime('%Y-%m'), "count": row['y']} for _, row in df.iterrows()]
         
-        # Replace NaN values with None so FastAPI can serialize it to standard JSON nulls
-        clean_df = df.where(pd.notnull(df), None)
-        results = clean_df.to_dict(orient="records")
+        # Filter forecast to only future dates
+        future_forecast = forecast[forecast['ds'] > df['ds'].max()]
+        predicted = [{"date": row['ds'].strftime('%Y-%m'), "count": max(0, round(row['yhat']))} for _, row in future_forecast.iterrows()]
         
         return {
             "status": "success",
-            "message": "Severity predictions generated successfully",
-            "total_records": len(results),
-            "data": results
+            "historical": historical,
+            "forecast": predicted
         }
-        
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Error during model inference: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Prophet Forecasting error: {str(e)}")
+
+
+@router.get("/severity-assessment")
+async def severity_assessment(
+    report_id: Optional[uuid.UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Task 2: Severity and Risk Assessment
+    Upgraded to Batched Zero-Shot NLP with INT8 Quantization.
+    """
+    query = select(Vulnerability)
+    if report_id:
+        query = query.where(Vulnerability.report_id == report_id)
+    else:
+        # For massive scale, limit independent un-filtered assessments to top 500
+        # to prevent OOM API crashes when viewing global data.
+        query = query.limit(500)
+    
+    result = await db.execute(query)
+    vulns = result.scalars().all()
+    
+    if not vulns:
+        return {"status": "success", "total_assessed": 0, "data": []}
+        
+    try:
+        pipe = get_nlp_pipeline()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    candidate_labels = ["Critical Risk", "High Risk", "Medium Risk", "Low Risk"]
+    
+    # OPTIMIZATION 2: Dynamic Batching
+    # Instead of predicting sequentially in a loop, we feed all texts to the pipeline
+    # simultaneously utilizing internal batching and vectorized tensor math.
+    texts = [f"{v.vulnerability_title}. {v.description or ''} {v.impact or ''}" for v in vulns]
+    
+    # Run in a background thread to prevent blocking FastAPI's async event loop
+    results = await asyncio.to_thread(pipe, texts, candidate_labels, batch_size=16)
+    
+    # If only 1 item was passed, HF pipeline returns a dict, not a list of dicts.
+    if isinstance(results, dict):
+        results = [results]
+        
+    assessed_vulns = []
+    
+    for v, res in zip(vulns, results):
+        top_label = res['labels'][0]
+        
+        suggested_severity = "INFORMATIONAL"
+        if top_label == "Critical Risk": suggested_severity = "CRITICAL"
+        elif top_label == "High Risk": suggested_severity = "HIGH"
+        elif top_label == "Medium Risk": suggested_severity = "MEDIUM"
+        elif top_label == "Low Risk": suggested_severity = "LOW"
+        
+        # NLP Confidence Score
+        confidence = round(res['scores'][0] * 100, 1)
+        
+        assessed_vulns.append({
+            "vuln_id": str(v.vuln_id),
+            "title": v.vulnerability_title,
+            "current_severity": v.severity.value if v.severity else None,
+            "suggested_severity": suggested_severity,
+            "nlp_confidence": confidence,
+            "cvss_score": float(v.cvss_score) if v.cvss_score else None,
+            "match": (v.severity.value if v.severity else "") == suggested_severity
+        })
+        
+    return {"status": "success", "total_assessed": len(assessed_vulns), "data": assessed_vulns}
+
+
+@router.get("/clusters")
+async def regional_clusters(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Task 3: Clustering of Regional and National Patterns
+    Upgraded to HDBSCAN with severity-density feature engineering.
+    """
+    query = select(
+        Agency.agency_id,
+        Agency.agency_name,
+        func.count(Report.report_id).label("total_reports"),
+        func.avg(Vulnerability.cvss_score).label("avg_cvss"),
+        func.count(Vulnerability.vuln_id).label("total_vulns"),
+        func.sum(
+            case(
+                (Vulnerability.severity == SeverityLevel.CRITICAL, 1.0),
+                else_=0.0
+            )
+        ).label("critical_vulns")
+    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id).group_by(Agency.agency_id, Agency.agency_name)
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    if len(rows) < 4:
+        return {"status": "insufficient_data", "message": "Need at least 4 agencies to perform HDBSCAN clustering."}
+        
+    data = []
+    for r in rows:
+        total_v = float(r.total_vulns)
+        crit_v = float(r.critical_vulns or 0)
+        # Feature Engineering: Severity Density
+        severity_density = (crit_v / total_v) if total_v > 0 else 0.0
+        
+        data.append({
+            "agency_id": str(r.agency_id),
+            "agency_name": r.agency_name,
+            "total_reports": float(r.total_reports),
+            "avg_cvss": float(r.avg_cvss or 0.0),
+            "severity_density": float(severity_density),
+            "total_vulns": total_v
+        })
+        
+    df = pd.DataFrame(data)
+    features = ['total_reports', 'avg_cvss', 'severity_density']
+    X = df[features].values
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    # HDBSCAN Clustering
+    clusterer = hdbscan.HDBSCAN(min_cluster_size=2)
+    df['cluster'] = clusterer.fit_predict(X_scaled)
+    
+    clusters_out = []
+    for _, row in df.iterrows():
+        clusters_out.append({
+            "agency_id": row['agency_id'],
+            "agency_name": row['agency_name'],
+            "cluster": int(row['cluster']), # -1 indicates NOISE in HDBSCAN
+            "metrics": {f: row[f] for f in features}
+        })
+        
+    return {
+        "status": "success",
+        "agencies": clusters_out
+    }
+
+
+@router.get("/anomalies")
+async def audit_score_anomalies(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Task 4: Audit Score Comparisons (Anomaly Detection)
+    Enhanced Isolation Forest with variance and percentile feature engineering.
+    """
+    query = select(Agency.agency_id, Agency.agency_name, Report.report_id, Vulnerability.cvss_score).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
+    
+    result = await db.execute(query)
+    rows = result.all()
+    
+    if len(rows) < 4:
+        return {"status": "insufficient_data", "message": "Need more data for robust Isolation Forest detection."}
+        
+    df_raw = pd.DataFrame([{"agency_id": str(r.agency_id), "agency_name": r.agency_name, "report_id": str(r.report_id), "cvss": float(r.cvss_score or 0.0)} for r in rows])
+    
+    # Feature Engineering
+    agg_df = df_raw.groupby(['agency_id', 'agency_name']).agg(
+        total_reports=('report_id', 'nunique'),
+        avg_cvss=('cvss', 'mean'),
+        cvss_variance=('cvss', 'var'),
+        p90_cvss=('cvss', lambda x: x.quantile(0.9) if len(x) > 0 else 0)
+    ).reset_index()
+    
+    agg_df.fillna(0, inplace=True)
+    
+    features = ['total_reports', 'avg_cvss', 'cvss_variance', 'p90_cvss']
+    X = agg_df[features].values
+    
+    # Isolation Forest
+    iso = IsolationForest(contamination=0.1, random_state=42)
+    preds = iso.fit_predict(X)
+    scores = iso.decision_function(X)
+    
+    agg_df['is_anomaly'] = preds == -1
+    agg_df['anomaly_score'] = scores
+    
+    anomalies_out = []
+    for _, row in agg_df.iterrows():
+        anomalies_out.append({
+            "agency_id": row['agency_id'],
+            "agency_name": row['agency_name'],
+            "is_anomaly": bool(row['is_anomaly']),
+            "anomaly_score": float(row['anomaly_score']),
+            "metrics": {f: row[f] for f in features}
+        })
+        
+    anomalies_out.sort(key=lambda x: x['anomaly_score'])
+    
+    return {
+        "status": "success",
+        "total_agencies": len(anomalies_out),
+        "anomalies_detected": sum(1 for a in anomalies_out if a['is_anomaly']),
+        "data": anomalies_out
+    }
+
+
+@router.get("/prioritize")
+async def task_prioritization(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Task 5: Task Prioritization
+    Upgraded TOPSIS with exponential decay function for long-standing critical tasks.
+    OPTIMIZATION: Limits DB retrieval to the top 1000 most pressing (highest CVSS) to prevent RAM explosion at extreme scale.
+    """
+    # OPTIMIZATION: Database-Level Scalability
+    query = (
+        select(Vulnerability)
+        .where(Vulnerability.status == VulnStatus.OPEN)
+        .order_by(Vulnerability.cvss_score.desc())
+        .limit(1000)
+    )
+    result = await db.execute(query)
+    vulns = result.scalars().all()
+    
+    if not vulns:
+        return {"status": "success", "data": []}
+        
+    data = []
+    now = datetime.now(timezone.utc)
+    for v in vulns:
+        days_open = (now - v.created_at).days
+        
+        # Exponential Decay / Non-linear urgency for Days Open
+        urgency_score = math.exp(days_open / 100.0)
+        
+        has_cve = 1 if (v.cve_ids and len(v.cve_ids) > 0) else 0
+        cvss = float(v.cvss_score or 0.0)
+        
+        data.append([str(v.vuln_id), v.vulnerability_title, cvss, days_open, urgency_score, has_cve])
+        
+    df = pd.DataFrame(data, columns=['vuln_id', 'title', 'cvss', 'days_open', 'urgency_score', 'has_cve'])
+    
+    X = df[['cvss', 'urgency_score', 'has_cve']].values
+    
+    # Normalize
+    norm_X = X / np.sqrt((X**2).sum(axis=0) + 1e-8)
+    
+    # Apply Weights (CVSS: 60%, Urgency: 30%, CVE: 10%)
+    weights = np.array([0.6, 0.3, 0.1])
+    weighted_X = norm_X * weights
+    
+    ideal_best = weighted_X.max(axis=0)
+    ideal_worst = weighted_X.min(axis=0)
+    
+    dist_best = np.sqrt(((weighted_X - ideal_best)**2).sum(axis=1))
+    dist_worst = np.sqrt(((weighted_X - ideal_worst)**2).sum(axis=1))
+    
+    scores = dist_worst / (dist_best + dist_worst + 1e-8)
+    df['topsis_score'] = scores
+    
+    df = df.sort_values('topsis_score', ascending=False)
+    
+    prioritized = []
+    for _, row in df.iterrows():
+        prioritized.append({
+            "vuln_id": row['vuln_id'],
+            "title": row['title'],
+            "cvss": row['cvss'],
+            "days_open": row['days_open'],
+            "urgency_multiplier": round(float(row['urgency_score']), 2),
+            "priority_score": round(float(row['topsis_score']) * 100, 2)
+        })
+        
+    return {"status": "success", "total": len(prioritized), "data": prioritized}

@@ -55,13 +55,23 @@ function ReportDetailPage() {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const [report, setReport] = useState(null);
+  const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const response = await api.get(`/api/reports/${id}`);
-        setReport(response.data);
+        const [response, mlResponse] = await Promise.allSettled([
+          api.get(`/api/reports/${id}`),
+          api.get(`/api/ml/severity-assessment?report_id=${id}`)
+        ]);
+        
+        if (response.status === 'fulfilled') {
+          setReport(response.value.data);
+        }
+        if (mlResponse.status === 'fulfilled') {
+          setAssessments(mlResponse.value.data.data);
+        }
       } catch {
         enqueueSnackbar('Failed to load report', { variant: 'error' });
         navigate('/reports');
@@ -277,6 +287,66 @@ function ReportDetailPage() {
           )}
         </Grid>
       </Grid>
+
+      {/* AI Vulnerability Assessment */}
+      {assessments && assessments.length > 0 && (
+        <Card className="fade-in-up" sx={{ mt: 3, animationDelay: '300ms' }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
+              <CheckCircle sx={{ color: '#00E676' }} />
+              <Typography variant="h6" fontWeight={700}>
+                AI Severity Assessment (Expert System)
+              </Typography>
+            </Box>
+            <Box sx={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <th style={{ padding: '12px' }}>Vulnerability Title</th>
+                    <th style={{ padding: '12px' }}>CVSS Score</th>
+                    <th style={{ padding: '12px' }}>Assigned Severity</th>
+                    <th style={{ padding: '12px' }}>AI Suggested</th>
+                    <th style={{ padding: '12px' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assessments.map((vuln) => (
+                    <tr key={vuln.vuln_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '12px' }}>
+                        <Typography variant="body2">{vuln.title}</Typography>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <Typography variant="body2">{vuln.cvss_score}</Typography>
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <Chip size="small" label={vuln.current_severity} variant="outlined" />
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        <Chip 
+                          size="small" 
+                          label={vuln.suggested_severity} 
+                          color={
+                            vuln.suggested_severity === 'CRITICAL' ? 'error' :
+                            vuln.suggested_severity === 'HIGH' ? 'warning' :
+                            vuln.suggested_severity === 'MEDIUM' ? 'info' : 'success'
+                          } 
+                        />
+                      </td>
+                      <td style={{ padding: '12px' }}>
+                        {vuln.match ? (
+                          <Chip size="small" label="Match" color="success" />
+                        ) : (
+                          <Chip size="small" label="Mismatch" color="error" />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 }

@@ -11,6 +11,10 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download and cache HF Model Weights first (so code changes don't bust the 1.6GB cache)
+COPY download_models.py .
+RUN python download_models.py
+
 # Copy application code
 COPY . .
 

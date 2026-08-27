@@ -17,6 +17,7 @@ import AgencyManagementPage from './pages/AgencyManagementPage';
 import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
 import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
+import MLAnalyticsDashboardPage from './pages/MLAnalyticsDashboardPage';
 
 function App() {
   const { loading } = useAuth();
@@ -49,6 +50,7 @@ function App() {
           <Route path="/reports/:id" element={<ReportDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/analytics" element={<AnalyticsDashboardPage />} />
+          <Route path="/ml-analytics" element={<MLAnalyticsDashboardPage />} />
           <Route
             path="/users"
             element={
