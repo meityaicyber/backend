@@ -1,0 +1,23 @@
+{
+  "active_version": "1.0.0",
+  "versions": [
+    {
+      "version": "1.0.0",
+      "timestamp": "2026-08-24T12:00:00Z",
+      "author": "Lead AI Architect",
+      "approval_id": "EMP-AUTH-2026-08-01",
+      "description": "Baseline operational release of Auditing Agency Performance Monitoring Module with 6 standard features and AHP weightings.",
+      "config_hashes": {
+        "feature_definitions": "a3f5c9e1",
+        "scoring_config": "b8d2e4f7",
+        "model_config": "c1a9b2d3"
+      },
+      "changes": [
+        "Initial configuration-driven schema definition",
+        "6 cyber-audit performance features established",
+        "Tri-level classification (Renew, Review, Do Not Renew) defined",
+        "Air-gapped deployment readiness profile established"
+      ]
+    }
+  ]
+}

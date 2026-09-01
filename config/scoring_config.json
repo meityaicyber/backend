@@ -1,0 +1,27 @@
+{
+  "version": "1.0.0",
+  "method": "weighted_linear_combination",
+  "weights": {
+    "audit_timeliness": 20.0,
+    "audit_efficiency": 15.0,
+    "error_rate": 20.0,
+    "agency_scale": 10.0,
+    "compliance_adherence": 20.0,
+    "past_renewal_status": 15.0
+  },
+  "thresholds": {
+    "renew": 70.0,
+    "review": 50.0
+  },
+  "boundary_tolerance": 3.0,
+  "missing_data_policy": "exclude_and_renormalise",
+  "tie_policy": "standard_competition",
+  "error_rate_inversion": {
+    "enabled": true,
+    "formula": "100.0 - error_rate"
+  },
+  "justification": {
+    "weights": "Derived through Analytical Hierarchy Process (AHP) balancing operational timeliness (20%), technical report quality (20%), and regulatory compliance (20%) as primary pillars, with efficiency (15%), historical renewal (15%), and capacity scale (10%) as secondary pillars.",
+    "thresholds": "Empanelled renewal threshold of 70.0 corresponds to standard B+ tier regulatory competence. Review threshold of 50.0 triggers mandatory remedial inspection before empanelment revocation."
+  }
+}

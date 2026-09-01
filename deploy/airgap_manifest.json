@@ -1,0 +1,174 @@
+{
+  "manifest_version": "1.0.0",
+  "created_at": "2026-08-31T08:51:37.461348+00:00",
+  "total_files": 33,
+  "target_environment": "Air-Gapped Secure Enclave",
+  "verification_method": "SHA-256 Digest",
+  "entries": [
+    {
+      "path": "config/feature_definitions.json",
+      "sha256": "c8019740fc82f857d260533ff8f84c797e3f5b9467ad6a278dfd7f5ba5c5223b",
+      "size_bytes": 10031
+    },
+    {
+      "path": "config/model_config.json",
+      "sha256": "b0a64130cfca754fe8d85c9c48ee46fd11a78108b2b94683bf0b58c582fefc8b",
+      "size_bytes": 2417
+    },
+    {
+      "path": "config/scoring_config.json",
+      "sha256": "858815e517ed6f67c88af95a5b4bc0a91075a4101660b944653abea2baa66025",
+      "size_bytes": 1058
+    },
+    {
+      "path": "config/version_registry.json",
+      "sha256": "c06904c5802322f504c32e0e11e14ada507ebd4e87e55505c7052263ec2d3795",
+      "size_bytes": 791
+    },
+    {
+      "path": "data/generator.py",
+      "sha256": "ff961068aa0571fb93cb6251b17eb06a07dbf558c778620dc7c86897c8d709a4",
+      "size_bytes": 9838
+    },
+    {
+      "path": "data/synthetic_auditing_agencies.json",
+      "sha256": "cd54bdcf1d26c107a8f21e1ee1f0f674d64d9727ea7e5329a8c8b0e763777928",
+      "size_bytes": 321519
+    },
+    {
+      "path": "src/__init__.py",
+      "sha256": "09173cdebb059e55cc5dce292393e235b4606157c01f6606fc60d5b484dcdc82",
+      "size_bytes": 88
+    },
+    {
+      "path": "src/cli.py",
+      "sha256": "431d0269785db5ac2056d9677905f7807e6a3a33fba328c84ac8f551acd66e3d",
+      "size_bytes": 6547
+    },
+    {
+      "path": "src/feature_extractor.py",
+      "sha256": "1dbfde398901027ad6c5d50cb0646f61b111d51bb6be26827054d194d47b83e8",
+      "size_bytes": 12753
+    },
+    {
+      "path": "src/models/__init__.py",
+      "sha256": "2687ce4e64489f6b769326dac2ade6ed111731d71b70bc9313fde7b684b8b3d4",
+      "size_bytes": 259
+    },
+    {
+      "path": "src/models/baseline.py",
+      "sha256": "77277b838bc19a9e7cfc584c872a4bb8f837b00846fbb7053db4a926d822e795",
+      "size_bytes": 3092
+    },
+    {
+      "path": "src/models/evaluate.py",
+      "sha256": "b7e0cfde408d9647954bfbdbb338ce8aca27f400397e876bcef99aea6365d9e6",
+      "size_bytes": 3506
+    },
+    {
+      "path": "src/models/pipeline.py",
+      "sha256": "ed71adb39cad4825dbfd4d7b1d3ed4980ada8573a244e606d35833186f5c8d89",
+      "size_bytes": 11413
+    },
+    {
+      "path": "src/scoring/__init__.py",
+      "sha256": "333057a9d918d14488e5e3d8937f326c0e1b8c29a33d993867c9e57cfb722368",
+      "size_bytes": 323
+    },
+    {
+      "path": "src/scoring/engine.py",
+      "sha256": "50653c32df561b7114a9daae58aa0642481c1b6e2dfff711c46f01e908619513",
+      "size_bytes": 5764
+    },
+    {
+      "path": "src/scoring/ranking.py",
+      "sha256": "2a34992b22bd9b858a7c15c49e7650d8962e46dd51b427676986cccc855db7a1",
+      "size_bytes": 9100
+    },
+    {
+      "path": "src/versioning/__init__.py",
+      "sha256": "4ae80e3c0b33e81e441a8eece4e752d70f93fe7adca63c478c0f53f32d83442b",
+      "size_bytes": 125
+    },
+    {
+      "path": "src/versioning/registry.py",
+      "sha256": "a8c8516ff57b20371b036f82e14bf9c81bd4ed5bcf380058a21ce3b83c02f571",
+      "size_bytes": 4594
+    },
+    {
+      "path": "deploy/airgap_packager.py",
+      "sha256": "9bd606090b29c4f7415780d914c8baf1a77a4df2a51dd0d3d0ad0b406d73fa9c",
+      "size_bytes": 2430
+    },
+    {
+      "path": "deploy/airgap_update_process.md",
+      "sha256": "9cb50217f319f6146dceba571e68223113de40891a6a1c1f81c345356b401524",
+      "size_bytes": 6133
+    },
+    {
+      "path": "deploy/verify_offline_install.py",
+      "sha256": "5185f7593a525b596fa3afd737c9504494c17d9268ef087a6a30517d70796395",
+      "size_bytes": 6293
+    },
+    {
+      "path": "tests/test_acceptance.py",
+      "sha256": "8aa6d55080f75e256fce2ff650eb777c31a184ca62212ee9c98768542c8f95d4",
+      "size_bytes": 14009
+    },
+    {
+      "path": "tests/test_generator.py",
+      "sha256": "c0e0d9e7120ccf35d3cd2e65135fcc27c93b28ea157b597e04f265cbf6b928c2",
+      "size_bytes": 986
+    },
+    {
+      "path": "tests/test_ingest_and_rank.py",
+      "sha256": "e59bd992c795311b527df17f66dcf79493c3ccf4ae6c9fdbd215e219333ee1ad",
+      "size_bytes": 3637
+    },
+    {
+      "path": "tests/test_scoring.py",
+      "sha256": "8d1f4c6d8c0a3648e32ea6e5706f2c99d7e6c5d0be1d00c4557a45f0edd6265a",
+      "size_bytes": 3095
+    },
+    {
+      "path": "docs/D10_design_and_derivation.md",
+      "sha256": "6946fc9e97bf81fe524f4a57c635a004c344774d87b12769a47a5a5f3643fe66",
+      "size_bytes": 6507
+    },
+    {
+      "path": "docs/D11_runbook.md",
+      "sha256": "1d98abee207adb3b46f83ceafb31be86ea0c2df6dd057488a212cac8e5ee1181",
+      "size_bytes": 4313
+    },
+    {
+      "path": "docs/D12_results_and_analysis.md",
+      "sha256": "bd8968a205243071ff93e87fd435db93ecf5339b711e7e10edadae92fedada8f",
+      "size_bytes": 4821
+    },
+    {
+      "path": "docs/D13_comparative_study.md",
+      "sha256": "0e8dab8ffff4fcd75a86603be8f6fd209bec724468a56146027b9cd89da9b1df",
+      "size_bytes": 12537
+    },
+    {
+      "path": "docs/D1_feature_definitions.md",
+      "sha256": "1cdd8c07c33bf8b0104b6bfe4189240ce08209866c1789ef41e96e80e8f9e8d6",
+      "size_bytes": 6927
+    },
+    {
+      "path": "README.md",
+      "sha256": "a10a9a09b7d3edd22831624bd9ea4f446a3566e95d72bb881c184a42377ecd59",
+      "size_bytes": 15072
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "085fba9044298b9061f9ae13830fec2835fffee8410f3f09d2e293acd9a766e8",
+      "size_bytes": 107
+    },
+    {
+      "path": "config.json",
+      "sha256": "b0a64130cfca754fe8d85c9c48ee46fd11a78108b2b94683bf0b58c582fefc8b",
+      "size_bytes": 2417
+    }
+  ]
+}

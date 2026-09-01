@@ -1,0 +1,206 @@
+{
+  "schema_version": "1.1.0",
+  "features": [
+    {
+      "id": "audit_timeliness",
+      "name": "Audit Timeliness",
+      "operational_definition": "Proportion of cybersecurity audit reports delivered to empanelment authority on or before the contractual milestone deadline.",
+      "computation_method": "(on_time_reports / total_submitted_reports) * 100",
+      "unit": "percentage",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable if total_scheduled_reports == 0 or reporting data unavailable.",
+      "justification": "Direct measure of operational reliability and adherence to statutory reporting schedules under empanelment guidelines.",
+      "direction": "higher_is_better",
+      "raw_extraction": {
+        "strategy": "ratio_filter_date_compare",
+        "source_section": "audits",
+        "description": "Count submitted audits where report_submission_date <= contractual_milestone_date, divided by total submitted audits.",
+        "row_filter": {
+          "field": "report_status",
+          "equals": "submitted"
+        },
+        "numerator": {
+          "type": "count_where_date_lte",
+          "date_field_a": "report_submission_date",
+          "date_field_b": "contractual_milestone_date",
+          "comment": "Counts rows where date_field_a <= date_field_b (on-time delivery)"
+        },
+        "denominator": {
+          "type": "count_all_filtered",
+          "comment": "Total rows passing row_filter with both date fields present"
+        },
+        "scale_factor": 100.0,
+        "missing_condition": "denominator_is_zero"
+      }
+    },
+    {
+      "id": "audit_efficiency",
+      "name": "Audit Efficiency",
+      "operational_definition": "Operational velocity metric measuring average calendar days taken from audit kickoff to final report issuance relative to benchmark standard (45 days).",
+      "computation_method": "clamp((benchmark_duration_days / max(observed_average_duration_days, 1.0)) * 100, 0.0, 100.0)",
+      "unit": "index_points",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable if no audits completed in the evaluation period.",
+      "justification": "Prevents protracted audit cycles while encouraging prompt finalisation without compromising audit rigor.",
+      "direction": "higher_is_better",
+      "raw_extraction": {
+        "strategy": "benchmark_duration_index",
+        "source_section": "audits",
+        "description": "Compute average calendar days from actual_start_date to report_submission_date for submitted audits; express as benchmark-relative index.",
+        "row_filter": {
+          "field": "report_status",
+          "equals": "submitted"
+        },
+        "duration": {
+          "start_date_field": "actual_start_date",
+          "end_date_field": "report_submission_date",
+          "comment": "Both fields must be present and end_date >= start_date for the row to be included"
+        },
+        "benchmark_days": 45.0,
+        "formula": "clamp((benchmark_days / max(avg_duration_days, 1.0)) * 100, 0, 100)",
+        "clamp_min": 0.0,
+        "clamp_max": 100.0,
+        "scale_factor": 100.0,
+        "missing_condition": "no_valid_duration_rows"
+      }
+    },
+    {
+      "id": "error_rate",
+      "name": "Error Rate",
+      "operational_definition": "Percentage of published audit reports requiring post-submission errata, technical corrections, or rejected due to methodological discrepancies.",
+      "computation_method": "(discrepant_reports / total_submitted_reports) * 100",
+      "unit": "percentage",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable if total_submitted_reports == 0.",
+      "justification": "Primary indicator of technical audit quality and peer-review rigor prior to report submission.",
+      "direction": "lower_is_better",
+      "raw_extraction": {
+        "strategy": "ratio_nested_flag",
+        "source_section": "audits",
+        "description": "Count submitted audits containing at least one report_findings entry with review_status == 'discrepancy', divided by total submitted audits.",
+        "row_filter": {
+          "field": "report_status",
+          "equals": "submitted"
+        },
+        "numerator": {
+          "type": "count_where_nested_any_match",
+          "nested_array_field": "report_findings",
+          "nested_filter_field": "review_status",
+          "nested_filter_value": "discrepancy",
+          "comment": "Counts parent rows where ANY nested item matches the nested_filter"
+        },
+        "denominator": {
+          "type": "count_all_filtered",
+          "comment": "Total rows passing row_filter"
+        },
+        "scale_factor": 100.0,
+        "missing_condition": "denominator_is_zero"
+      }
+    },
+    {
+      "id": "agency_scale",
+      "name": "Agency Scale",
+      "operational_definition": "Composite organizational capacity index evaluating certified auditor workforce size (60% weight) and years of active operational experience (40% weight).",
+      "computation_method": "min(100.0, (certified_auditors / 50.0) * 60.0 + (years_experience / 20.0) * 40.0)",
+      "unit": "score",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable if staffing or incorporation records are unverified.",
+      "justification": "Ensures the agency maintains sufficient depth of qualified personnel to undertake complex multi-scope enterprise audits.",
+      "direction": "higher_is_better",
+      "raw_extraction": {
+        "strategy": "composite_workforce_index",
+        "source_section": "auditors",
+        "description": "Certified auditor headcount (60% weight) plus years-of-experience derived from the earliest experience_start_date (40% weight), capped at 100.",
+        "components": [
+          {
+            "name": "certified_auditors",
+            "type": "count_where_bool_true",
+            "field": "certified",
+            "normaliser": 50.0,
+            "weight": 60.0,
+            "comment": "Count of auditor rows where certified == true, normalised to 50 auditors = full marks"
+          },
+          {
+            "name": "years_experience",
+            "type": "years_since_min_date",
+            "date_field": "experience_start_date",
+            "normaliser": 20.0,
+            "weight": 40.0,
+            "comment": "Years elapsed from the earliest experience_start_date across all auditors, normalised to 20 years = full marks"
+          }
+        ],
+        "formula": "min(100, sum(min(component_value / normaliser, 1.0) * weight for each component))",
+        "clamp_max": 100.0,
+        "missing_condition": "no_auditor_records"
+      }
+    },
+    {
+      "id": "compliance_adherence",
+      "name": "Compliance Adherence",
+      "operational_definition": "Percentage of mandatory supervisory cybersecurity auditing standards and quality assurance controls satisfied during regulatory oversight inspections.",
+      "computation_method": "(verified_controls_passed / mandatory_controls_applicable) * 100",
+      "unit": "percentage",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable if no supervisory compliance review conducted in prior 24 months.",
+      "justification": "Guarantees fidelity to national cybersecurity frameworks (e.g., ISO/IEC 27001, CERT-In, NIST SP 800-53).",
+      "direction": "higher_is_better",
+      "raw_extraction": {
+        "strategy": "latest_assessment_control_pass_rate",
+        "source_section": "compliance_assessments",
+        "description": "Select the assessment with the latest assessment_date; among its controls where applicable == true, count those with result == 'pass' divided by total applicable.",
+        "assessment_sort_field": "assessment_date",
+        "assessment_sort_order": "latest",
+        "controls_array_field": "controls",
+        "applicable_filter": {
+          "field": "applicable",
+          "equals": true
+        },
+        "pass_filter": {
+          "field": "result",
+          "equals": "pass"
+        },
+        "numerator": {
+          "type": "count_where_field_equals",
+          "field": "result",
+          "value": "pass"
+        },
+        "denominator": {
+          "type": "count_applicable",
+          "comment": "Total controls where applicable == true"
+        },
+        "scale_factor": 100.0,
+        "missing_condition": "no_assessments_or_no_applicable_controls"
+      }
+    },
+    {
+      "id": "past_renewal_status",
+      "name": "Past Renewal Status",
+      "operational_definition": "Historical track record reflecting the proportion of past empanelment cycles successfully renewed without sanctions, suspensions, or revocations.",
+      "computation_method": "(successful_renewals_without_sanction / total_renewal_attempts) * 100",
+      "unit": "percentage",
+      "permitted_range": [0.0, 100.0],
+      "treatment_of_missing": "Mark feature as not_assessable for newly empanelled agencies (total_renewal_attempts == 0).",
+      "justification": "Incorporates empirical institutional reliability and long-term regulatory compliance history.",
+      "direction": "higher_is_better",
+      "raw_extraction": {
+        "strategy": "ratio_multi_filter",
+        "source_section": "renewal_history",
+        "description": "Count renewal records where decision == 'renewed' AND sanction == false, divided by total renewal records.",
+        "numerator": {
+          "type": "count_where_multi_filter",
+          "filters": [
+            { "field": "decision", "equals": "renewed" },
+            { "field": "sanction", "equals": false }
+          ],
+          "comment": "All filter conditions must be satisfied simultaneously (logical AND)"
+        },
+        "denominator": {
+          "type": "count_all",
+          "comment": "Total renewal records regardless of outcome"
+        },
+        "scale_factor": 100.0,
+        "missing_condition": "denominator_is_zero"
+      }
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "selected_model": "gradient_boosting",
+  "random_seed": 42,
+  "train_test_split": {
+    "test_size": 0.20,
+    "stratify": true
+  },
+  "cross_validation": {
+    "n_splits": 5,
+    "shuffle": true,
+    "scoring": "f1_macro"
+  },
+  "feature_order": [
+    "audit_timeliness",
+    "audit_efficiency",
+    "error_rate",
+    "agency_scale",
+    "compliance_adherence",
+    "past_renewal_status"
+  ],
+  "target_classes": [
+    "renew",
+    "review",
+    "do_not_renew"
+  ],
+  "preprocessing": {
+    "imputer_strategy": "median",
+    "scale_continuous": true
+  },
+  "models": [
+    {
+      "id": "baseline",
+      "name": "Threshold Heuristic Baseline",
+      "type": "heuristic",
+      "interpretability": "High",
+      "offline_suitability": "High",
+      "description": "Rule-based scoring threshold heuristic serving as classical control baseline.",
+      "parameters": {
+        "renew_cutoff": 70.0,
+        "review_cutoff": 50.0
+      }
+    },
+    {
+      "id": "gradient_boosting",
+      "name": "Gradient Boosted Decision Trees",
+      "type": "ensemble",
+      "interpretability": "Medium",
+      "offline_suitability": "High",
+      "description": "Scikit-Learn GradientBoostingClassifier capturing non-linear interactions and feature thresholds.",
+      "parameters": {
+        "n_estimators": 100,
+        "learning_rate": 0.05,
+        "max_depth": 3,
+        "subsample": 0.8,
+        "random_state": 42
+      }
+    },
+    {
+      "id": "svm",
+      "name": "Support Vector Machine (RBF Kernel)",
+      "type": "kernel_machine",
+      "interpretability": "Low",
+      "offline_suitability": "High",
+      "description": "Scikit-Learn SVC with Radial Basis Function kernel and probability calibration.",
+      "parameters": {
+        "C": 1.0,
+        "kernel": "rbf",
+        "gamma": "scale",
+        "probability": true,
+        "random_state": 42
+      }
+    },
+    {
+      "id": "neural_network",
+      "name": "Multi-Layer Perceptron (MLP)",
+      "type": "neural_network",
+      "interpretability": "Low",
+      "offline_suitability": "Medium",
+      "description": "Scikit-Learn MLPClassifier with ReLU activations, L2 regularization, and Adam optimizer.",
+      "parameters": {
+        "hidden_layer_sizes": [64, 32],
+        "activation": "relu",
+        "alpha": 0.001,
+        "max_iter": 500,
+        "early_stopping": true,
+        "random_state": 42
+      }
+    }
+  ]
+}

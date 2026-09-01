@@ -1,0 +1,344 @@
+{
+  "evaluation_version": "1.0.0",
+  "random_seed": 42,
+  "sample_counts": {
+    "total": 500,
+    "train": 400,
+    "test": 100
+  },
+  "selected_model": "gradient_boosting",
+  "models": {
+    "baseline": {
+      "model_name": "baseline",
+      "sample_size": 100,
+      "metrics": {
+        "accuracy": 0.97,
+        "macro_precision": 0.9714,
+        "macro_recall": 0.8614,
+        "macro_f1": 0.8991,
+        "weighted_f1": 0.9681
+      },
+      "per_class_breakdown": {
+        "renew": {
+          "precision": 1.0,
+          "recall": 0.9841,
+          "f1_score": 0.992,
+          "support": 63
+        },
+        "review": {
+          "precision": 0.9143,
+          "recall": 1.0,
+          "f1_score": 0.9552,
+          "support": 32
+        },
+        "do_not_renew": {
+          "precision": 1.0,
+          "recall": 0.6,
+          "f1_score": 0.75,
+          "support": 5
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "renew",
+          "review",
+          "do_not_renew"
+        ],
+        "matrix": [
+          [
+            62,
+            1,
+            0
+          ],
+          [
+            0,
+            32,
+            0
+          ],
+          [
+            0,
+            2,
+            3
+          ]
+        ],
+        "breakdown": {
+          "renew": {
+            "renew": 62,
+            "review": 1,
+            "do_not_renew": 0
+          },
+          "review": {
+            "renew": 0,
+            "review": 32,
+            "do_not_renew": 0
+          },
+          "do_not_renew": {
+            "renew": 0,
+            "review": 2,
+            "do_not_renew": 3
+          }
+        }
+      },
+      "cross_validation": {
+        "fold_scores": [
+          0.7766,
+          0.8318,
+          0.9085,
+          0.8844,
+          0.8396
+        ],
+        "mean_f1_macro": 0.8482,
+        "std_f1_macro": 0.0456
+      }
+    },
+    "gradient_boosting": {
+      "model_name": "gradient_boosting",
+      "sample_size": 100,
+      "metrics": {
+        "accuracy": 0.89,
+        "macro_precision": 0.8099,
+        "macro_recall": 0.7269,
+        "macro_f1": 0.757,
+        "weighted_f1": 0.8849
+      },
+      "per_class_breakdown": {
+        "renew": {
+          "precision": 0.9242,
+          "recall": 0.9683,
+          "f1_score": 0.9457,
+          "support": 63
+        },
+        "review": {
+          "precision": 0.8387,
+          "recall": 0.8125,
+          "f1_score": 0.8254,
+          "support": 32
+        },
+        "do_not_renew": {
+          "precision": 0.6667,
+          "recall": 0.4,
+          "f1_score": 0.5,
+          "support": 5
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "renew",
+          "review",
+          "do_not_renew"
+        ],
+        "matrix": [
+          [
+            61,
+            2,
+            0
+          ],
+          [
+            5,
+            26,
+            1
+          ],
+          [
+            0,
+            3,
+            2
+          ]
+        ],
+        "breakdown": {
+          "renew": {
+            "renew": 61,
+            "review": 2,
+            "do_not_renew": 0
+          },
+          "review": {
+            "renew": 5,
+            "review": 26,
+            "do_not_renew": 1
+          },
+          "do_not_renew": {
+            "renew": 0,
+            "review": 3,
+            "do_not_renew": 2
+          }
+        }
+      },
+      "cross_validation": {
+        "fold_scores": [
+          0.9408,
+          0.8985,
+          0.9085,
+          0.9151,
+          0.9801
+        ],
+        "mean_f1_macro": 0.9286,
+        "std_f1_macro": 0.0293
+      }
+    },
+    "svm": {
+      "model_name": "svm",
+      "sample_size": 100,
+      "metrics": {
+        "accuracy": 0.95,
+        "macro_precision": 0.9594,
+        "macro_recall": 0.7792,
+        "macro_f1": 0.8263,
+        "weighted_f1": 0.9441
+      },
+      "per_class_breakdown": {
+        "renew": {
+          "precision": 0.9692,
+          "recall": 1.0,
+          "f1_score": 0.9844,
+          "support": 63
+        },
+        "review": {
+          "precision": 0.9091,
+          "recall": 0.9375,
+          "f1_score": 0.9231,
+          "support": 32
+        },
+        "do_not_renew": {
+          "precision": 1.0,
+          "recall": 0.4,
+          "f1_score": 0.5714,
+          "support": 5
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "renew",
+          "review",
+          "do_not_renew"
+        ],
+        "matrix": [
+          [
+            63,
+            0,
+            0
+          ],
+          [
+            2,
+            30,
+            0
+          ],
+          [
+            0,
+            3,
+            2
+          ]
+        ],
+        "breakdown": {
+          "renew": {
+            "renew": 63,
+            "review": 0,
+            "do_not_renew": 0
+          },
+          "review": {
+            "renew": 2,
+            "review": 30,
+            "do_not_renew": 0
+          },
+          "do_not_renew": {
+            "renew": 0,
+            "review": 3,
+            "do_not_renew": 2
+          }
+        }
+      },
+      "cross_validation": {
+        "fold_scores": [
+          0.9605,
+          0.9367,
+          0.9076,
+          0.7711,
+          0.9363
+        ],
+        "mean_f1_macro": 0.9024,
+        "std_f1_macro": 0.0678
+      }
+    },
+    "neural_network": {
+      "model_name": "neural_network",
+      "sample_size": 100,
+      "metrics": {
+        "accuracy": 0.9,
+        "macro_precision": 0.5901,
+        "macro_recall": 0.6146,
+        "macro_f1": 0.6019,
+        "weighted_f1": 0.876
+      },
+      "per_class_breakdown": {
+        "renew": {
+          "precision": 0.9265,
+          "recall": 1.0,
+          "f1_score": 0.9618,
+          "support": 63
+        },
+        "review": {
+          "precision": 0.8438,
+          "recall": 0.8438,
+          "f1_score": 0.8438,
+          "support": 32
+        },
+        "do_not_renew": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1_score": 0.0,
+          "support": 5
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "renew",
+          "review",
+          "do_not_renew"
+        ],
+        "matrix": [
+          [
+            63,
+            0,
+            0
+          ],
+          [
+            5,
+            27,
+            0
+          ],
+          [
+            0,
+            5,
+            0
+          ]
+        ],
+        "breakdown": {
+          "renew": {
+            "renew": 63,
+            "review": 0,
+            "do_not_renew": 0
+          },
+          "review": {
+            "renew": 5,
+            "review": 27,
+            "do_not_renew": 0
+          },
+          "do_not_renew": {
+            "renew": 0,
+            "review": 5,
+            "do_not_renew": 0
+          }
+        }
+      },
+      "cross_validation": {
+        "fold_scores": [
+          0.9596,
+          0.8673,
+          0.7325,
+          0.6218,
+          0.772
+        ],
+        "mean_f1_macro": 0.7907,
+        "std_f1_macro": 0.1155
+      }
+    }
+  }
+}
