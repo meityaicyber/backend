@@ -164,3 +164,40 @@ async def get_recent_vulns(
     """Get latest 10 vulnerabilities."""
     items = await analytics_service.get_recent_vulns(db, agency_id, report_id)
     return RecentVulns(data=[RecentVuln(**i) for i in items])
+@router.get("/vulnerabilities-raw")
+async def get_all_vulnerabilities_raw(
+    agency_id: Optional[UUID] = None,
+    report_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from sqlalchemy import select
+    from app.models.report import Vulnerability, Report
+
+    query = select(Vulnerability, Report.agency_id).join(Report, Vulnerability.report_id == Report.report_id)
+    if report_id:
+        query = query.where(Vulnerability.report_id == report_id)
+    if agency_id:
+        query = query.where(Report.agency_id == agency_id)
+        
+    result = await db.execute(query)
+    rows = result.all()
+    
+    data = []
+    for vuln, ag_id in rows:
+        data.append({
+            "id": str(vuln.vuln_id),
+            "title": vuln.vulnerability_title,
+            "severity": vuln.severity.value if vuln.severity else None,
+            "status": vuln.status.value if vuln.status else None,
+            "cvss": float(vuln.cvss_score) if vuln.cvss_score is not None else None,
+            "date": vuln.created_at.isoformat(),
+            "category": vuln.category,
+            "cwe": vuln.cwe_ids[0] if vuln.cwe_ids and len(vuln.cwe_ids) > 0 else None,
+            "cve": vuln.cve_ids[0] if vuln.cve_ids and len(vuln.cve_ids) > 0 else None,
+            "asset": vuln.affected_assets[0] if vuln.affected_assets and len(vuln.affected_assets) > 0 else None,
+            "new_or_repeat": vuln.new_or_repeat,
+            "reportId": str(vuln.report_id),
+            "agencyId": str(ag_id)
+        })
+    return data

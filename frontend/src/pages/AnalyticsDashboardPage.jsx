@@ -57,7 +57,7 @@ import {
   Area,
   Legend,
 } from 'recharts';
-import { agencies, files } from '../data/seedData';
+import api from '../api/axios';
 
 /* ─────────────────────── Color Palettes ─────────────────────── */
 const SEVERITY_COLORS = {
@@ -298,6 +298,10 @@ export default function AnalyticsDashboardPage() {
   const [timeRange, setTimeRange] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [chartFilter, setChartFilter] = useState({ key: null, value: null });
+  
+  const [agencies, setAgencies] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [allVulns, setAllVulns] = useState([]);
 
   const handleChartClick = (key, value) => {
     if (chartFilter.key === key && chartFilter.value === value) {
@@ -344,8 +348,36 @@ export default function AnalyticsDashboardPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
+          api.get('/api/agencies?limit=1000'),
+          api.get('/api/reports?limit=1000'),
+          api.get('/api/analytics/vulnerabilities-raw')
+        ]);
+        
+        const fetchedAgencies = agenciesRes.data.agencies.map(a => ({
+          id: a.agency_id,
+          name: a.name
+        }));
+        setAgencies(fetchedAgencies);
+
+        const fetchedFiles = reportsRes.data.reports.map(r => ({
+          id: r.report_id,
+          name: r.original_filename,
+          date: r.created_at,
+          agencyId: r.agency ? r.agency.agency_id : null,
+        }));
+        setFiles(fetchedFiles);
+        setAllVulns(vulnsRes.data || []);
+      } catch (err) {
+        console.error("Error fetching dashboard data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -355,13 +387,11 @@ export default function AnalyticsDashboardPage() {
   const filteredVulnerabilities = useMemo(() => {
     let vulns = [];
     if (viewMode === 'GLOBAL') {
-      files.forEach(f => { vulns = vulns.concat(f.vulnerabilities); });
+      vulns = allVulns;
     } else if (viewMode === 'AGENCY') {
-      const agencyFiles = files.filter(f => f.agencyId === selectedAgencyId);
-      agencyFiles.forEach(f => { vulns = vulns.concat(f.vulnerabilities); });
+      vulns = allVulns.filter(v => v.agencyId === selectedAgencyId);
     } else if (viewMode === 'FILE') {
-      const file = files.find(f => f.id === selectedFileId);
-      if (file) vulns = file.vulnerabilities;
+      vulns = allVulns.filter(v => v.reportId === selectedFileId);
     }
 
     const now = new Date();
