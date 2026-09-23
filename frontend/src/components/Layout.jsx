@@ -322,7 +322,9 @@ function Layout() {
           height: 'calc(100vh - 64px)',
         }}
       >
-        <Outlet />
+        <Box key={location.pathname} className="page-transition">
+          <Outlet />
+        </Box>
       </Box>
     </Box>
   );
