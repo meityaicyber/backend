@@ -4,7 +4,7 @@ import {
   Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import {
-  CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel
+  CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel, Download
 } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
@@ -42,6 +42,8 @@ function UploadReportPage() {
   const [bulkFinished, setBulkFinished] = useState(false);
   const [bulkStartTime, setBulkStartTime] = useState(null);
   const [bulkEndTime, setBulkEndTime] = useState(null);
+  const [generatingExcel, setGeneratingExcel] = useState(false);
+  const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
 
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -122,7 +124,7 @@ function UploadReportPage() {
   };
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    onDrop, accept: { 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'], 'text/plain': ['.txt'] },
+    onDrop, accept: { 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
     maxFiles: 1, maxSize: 50 * 1024 * 1024, disabled: uploading,
   });
 
@@ -131,9 +133,10 @@ function UploadReportPage() {
   // BULK UPLOAD
   const handleFolderSelect = (e) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files).filter(f => 
-        f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.docx') || f.name.toLowerCase().endsWith('.txt')
-      );
+      const filesArray = Array.from(e.target.files).filter(f => {
+        const lowerName = f.name.toLowerCase();
+        return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
+      });
       setPdfFiles(filesArray);
       
       // Initialize table data
@@ -156,6 +159,88 @@ function UploadReportPage() {
     setBulkFilesData(prev => prev.map(item => 
       item.id === id ? { ...item, status, details } : item
     ));
+  };
+
+
+  const handleGenerateMapping = async (e) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setGeneratingExcel(true);
+    
+    try {
+      const files = Array.from(e.target.files);
+      
+      // Group files by their directory
+      const directories = {};
+      files.forEach(f => {
+        const pathParts = (f.webkitRelativePath || f.name).split('/');
+        pathParts.pop(); // remove filename
+        const dirPath = pathParts.join('/');
+        if (!directories[dirPath]) directories[dirPath] = [];
+        directories[dirPath].push(f);
+      });
+
+      const mappingData = [];
+
+      for (const dir in directories) {
+        const dirFiles = directories[dir];
+        const txtFiles = dirFiles.filter(f => f.name.toLowerCase().endsWith('.txt'));
+        const reportFiles = dirFiles.filter(f => f.name.toLowerCase().endsWith('.pdf') || f.name.toLowerCase().endsWith('.docx'));
+
+        if (txtFiles.length > 0 && reportFiles.length > 0) {
+          // Read the first txt file as password
+          const txtFile = txtFiles[0];
+          const text = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(txtFile);
+          });
+          
+          const password = text.trim();
+          
+          if (password) {
+            reportFiles.forEach(rf => {
+               mappingData.push({
+                 "File Name": rf.name.substring(0, rf.name.lastIndexOf('.')) || rf.name,
+                 "Password": password
+               });
+            });
+          }
+        }
+      }
+
+      if (mappingData.length === 0) {
+        enqueueSnackbar('No valid password text files found in the folder structure.', { variant: 'warning' });
+        setGeneratingExcel(false);
+        return;
+      }
+
+      // Create Excel
+      const worksheet = XLSX.utils.json_to_sheet(mappingData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Mapping");
+      
+      // Generate binary string
+      const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      
+      // Create download URL
+      const url = URL.createObjectURL(blob);
+      setGeneratedExcelUrl(url);
+      
+      // Auto-set as excel file
+      const generatedFile = new File([blob], 'generated_mapping.xlsx', { type: blob.type });
+      setExcelFile(generatedFile);
+      
+      enqueueSnackbar(`Generated mapping for ${mappingData.length} files successfully!`, { variant: 'success' });
+    } catch (error) {
+      console.error('Error generating mapping:', error);
+      enqueueSnackbar('Failed to generate Excel mapping', { variant: 'error' });
+    } finally {
+      setGeneratingExcel(false);
+      // Clear input so it can be clicked again
+      e.target.value = null;
+    }
   };
 
   const handleBulkLaunch = async () => {
@@ -323,7 +408,7 @@ function UploadReportPage() {
         Upload Reports
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-        Upload single or bulk PDF, DOCX, or TXT files for processing and validation
+        Upload single or bulk PDF or DOCX files for processing and validation
       </Typography>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
@@ -368,7 +453,7 @@ function UploadReportPage() {
               <input {...getInputProps()} />
               <CloudUpload sx={{ fontSize: 64, color: isDragActive ? '#00D4FF' : 'text.secondary', mb: 2, filter: isDragActive ? 'drop-shadow(0 0 12px rgba(0,212,255,0.5))' : 'none' }} />
               <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>{isDragActive ? 'Drop the file here' : 'Drag & drop a file here, or click to browse'}</Typography>
-              <Typography variant="body2" color="text.secondary">Supported formats: PDF, DOCX, TXT — Max size: 50MB</Typography>
+              <Typography variant="body2" color="text.secondary">Supported formats: PDF, DOCX — Max size: 50MB</Typography>
             </Paper>
 
             {uploading && (
@@ -421,10 +506,24 @@ function UploadReportPage() {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Upload an Excel file containing audit numbers and passwords.
                 </Typography>
-                <Button variant="outlined" component="label" startIcon={<TableChart />}>
-                  {excelFile ? excelFile.name : 'Select Excel File'}
-                  <input type="file" accept=".xlsx, .xls, .csv" hidden onChange={(e) => setExcelFile(e.target.files[0])} disabled={bulkRunning} />
-                </Button>
+                
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Button variant="outlined" component="label" startIcon={<TableChart />}>
+                    {excelFile ? excelFile.name : 'Select Excel File'}
+                    <input type="file" accept=".xlsx, .xls, .csv" hidden onChange={(e) => setExcelFile(e.target.files[0])} disabled={bulkRunning} />
+                  </Button>
+                  <Typography variant="body2" color="text.secondary">OR</Typography>
+                  <Button variant="contained" component="label" color="secondary" startIcon={generatingExcel ? <Autorenew sx={{ animation: 'spin 2s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }} /> : <Autorenew />} disabled={bulkRunning || generatingExcel}>
+                    {generatingExcel ? 'Generating...' : 'Auto-Generate from Folder'}
+                    <input type="file" webkitdirectory="true" directory="true" multiple hidden onChange={handleGenerateMapping} disabled={bulkRunning || generatingExcel} />
+                  </Button>
+                  {generatedExcelUrl && (
+                    <Button variant="text" color="info" startIcon={<Download />} component="a" href={generatedExcelUrl} download="mapping.xlsx">
+                      Download Generated Excel
+                    </Button>
+                  )}
+                </Box>
+
               </Box>
 
               <Box>
@@ -515,7 +614,7 @@ function UploadReportPage() {
           <TextField autoFocus margin="dense" label="File Password" type="password" fullWidth variant="outlined" value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()} error={error === 'Incorrect password. Please try again.'} helperText={error === 'Incorrect password. Please try again.' ? error : ''} />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={handlePasswordCancel} color="inherit">Cancel</Button>
+          <Button onClick={handlePasswordCancel} color="inherit">Cancel, Download</Button>
           <Button onClick={handlePasswordSubmit} variant="contained" disabled={!passwordInput || uploading}>{uploading ? 'Unlocking...' : 'Unlock & Upload'}</Button>
         </DialogActions>
       </Dialog>
