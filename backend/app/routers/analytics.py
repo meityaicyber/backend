@@ -198,6 +198,6 @@ async def get_all_vulnerabilities_raw(
             "asset": vuln.affected_assets[0] if vuln.affected_assets and len(vuln.affected_assets) > 0 else None,
             "new_or_repeat": vuln.new_or_repeat,
             "reportId": str(vuln.report_id),
-            "agencyId": str(ag_id)
+            "agencyId": str(ag_id) if ag_id else None
         })
     return data

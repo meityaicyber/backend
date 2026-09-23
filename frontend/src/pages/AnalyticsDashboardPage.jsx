@@ -359,7 +359,7 @@ export default function AnalyticsDashboardPage() {
         
         const fetchedAgencies = agenciesRes.data.agencies.map(a => ({
           id: a.agency_id,
-          name: a.name
+          name: a.agency_name
         }));
         setAgencies(fetchedAgencies);
 

@@ -158,10 +158,18 @@ async def download_report(
 @router.delete("/{report_id}")
 async def delete_report(
     report_id: uuid.UUID,
-    current_user: User = Depends(require_roles("ADMIN")),
+    current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a report (admin only)."""
+    """Delete a report."""
+    report = await report_service.get_report_by_id(db, report_id)
+    if not report:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+    
+    is_admin = any(r.role.role_name == "ADMIN" for r in current_user.roles)
+    if not is_admin and report.uploaded_by != current_user.user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this report")
+
     success = await report_service.delete_report(db, report_id, current_user.user_id)
     if not success:
         raise HTTPException(

@@ -890,72 +890,46 @@ function ReportsPage() {
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
-                        <Tooltip title="Run AI Pipeline">
-                          <span>
-                            <IconButton
-                              id={`run-pipeline-${report.report_id}`}
-                              size="small"
-                              onClick={() => openConfirmDialog(report)}
-                              disabled={pipelineStatus[report.report_id] === 'processing'}
-                              sx={{
-                                color: '#AB47BC',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  color: '#CE93D8',
-                                  transform: 'scale(1.15)',
-                                  bgcolor: 'rgba(171,71,188,0.08)',
-                                },
-                                '&.Mui-disabled': {
-                                  color: 'rgba(171,71,188,0.3)',
-                                },
-                              }}
-                            >
-                              {pipelineStatus[report.report_id] === 'processing' ? (
-                                <CircularProgress size={18} sx={{ color: '#AB47BC' }} />
-                              ) : (
-                                <RocketLaunch fontSize="small" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title="View AI Results">
-                          <IconButton
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          <Button
                             size="small"
+                            variant="outlined"
+                            startIcon={<Security fontSize="small" />}
                             onClick={() => handleViewResults(report)}
-                            sx={{ color: '#FFD600', '&:hover': { color: '#FFF' } }}
+                            sx={{ color: '#FFD600', borderColor: 'rgba(255,214,0,0.5)', '&:hover': { borderColor: '#FFD600', bgcolor: 'rgba(255,214,0,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
                           >
-                            <Security fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="View Details">
-                          <IconButton
+                            AI Results
+                          </Button>
+                          <Button
                             size="small"
+                            variant="outlined"
+                            startIcon={<Visibility fontSize="small" />}
                             onClick={() => navigate(`/reports/${report.report_id}`)}
-                            sx={{ color: '#00D4FF' }}
+                            sx={{ color: '#00D4FF', borderColor: 'rgba(0,212,255,0.5)', '&:hover': { borderColor: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
                           >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Download">
-                          <IconButton
+                            View
+                          </Button>
+                          <Button
                             size="small"
+                            variant="outlined"
+                            startIcon={<Download fontSize="small" />}
                             onClick={() => handleDownload(report.report_id, report.original_filename)}
-                            sx={{ color: '#00E676' }}
+                            sx={{ color: '#00E676', borderColor: 'rgba(0,230,118,0.5)', '&:hover': { borderColor: '#00E676', bgcolor: 'rgba(0,230,118,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
                           >
-                            <Download fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {isAdmin() && (
-                          <Tooltip title="Delete">
-                            <IconButton
+                            Download
+                          </Button>
+                          {isAdmin() && (
+                            <Button
                               size="small"
+                              variant="outlined"
+                              startIcon={<Delete fontSize="small" />}
                               onClick={() => handleDelete(report.report_id)}
-                              sx={{ color: '#FF1744' }}
+                              sx={{ color: '#FF1744', borderColor: 'rgba(255,23,68,0.5)', '&:hover': { borderColor: '#FF1744', bgcolor: 'rgba(255,23,68,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
                             >
-                              <Delete fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
+                              Delete
+                            </Button>
+                          )}
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
