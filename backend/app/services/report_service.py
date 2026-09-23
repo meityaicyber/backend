@@ -27,7 +27,7 @@ async def upload_report(
     file_bytes: bytes,
     filename: str,
     user_id: uuid.UUID,
-    agency_id: uuid.UUID,
+    agency_id: Optional[uuid.UUID] = None,
 ) -> Dict[str, Any]:
     """
     Full upload workflow:

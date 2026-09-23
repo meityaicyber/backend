@@ -17,8 +17,8 @@ router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
 @router.post("/upload", response_model=UploadResponse, status_code=status.HTTP_201_CREATED)
 async def upload_report(
-    agency_id: uuid.UUID = Form(...),
     file: UploadFile = File(...),
+    agency_id: uuid.UUID = Form(None),
     file_password: str = Form(None),
     current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
     db: AsyncSession = Depends(get_db),
