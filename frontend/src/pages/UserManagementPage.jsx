@@ -1,15 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Button,
   IconButton,
   Chip,
@@ -23,39 +17,70 @@ import {
   FormControl,
   InputLabel,
   Tooltip,
-  Skeleton,
 } from '@mui/material';
 import { Add, Edit, Delete, Person } from '@mui/icons-material';
 import { useForm, Controller } from 'react-hook-form';
 import { useSnackbar } from 'notistack';
+import { DataGrid } from '@mui/x-data-grid';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 
 const ROLES = ['ADMIN', 'AUDITOR', 'REVIEWER'];
 
 function UserManagementPage() {
   const { enqueueSnackbar } = useSnackbar();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
 
   const { control, register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
       const response = await api.get('/api/users', { params: { limit: 100 } });
-      setUsers(response.data.users);
-    } catch {
-      enqueueSnackbar('Failed to load users', { variant: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+      return response.data.users;
+    },
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const mutation = useMutation({
+    mutationFn: async (data) => {
+      if (editUser) {
+        return api.put(`/api/users/${editUser.user_id}`, {
+          email: data.email,
+          full_name: data.full_name || null,
+          roles: data.roles,
+        });
+      } else {
+        return api.post('/api/users', {
+          username: data.username,
+          email: data.email,
+          password: data.password,
+          full_name: data.full_name || null,
+          roles: data.roles,
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      enqueueSnackbar(`User ${editUser ? 'updated' : 'created'} successfully`, { variant: 'success' });
+      setDialogOpen(false);
+    },
+    onError: (err) => {
+      enqueueSnackbar(err.response?.data?.detail || 'Operation failed', { variant: 'error' });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId) => api.delete(`/api/users/${userId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      enqueueSnackbar('User deactivated', { variant: 'success' });
+    },
+    onError: (err) => {
+      enqueueSnackbar(err.response?.data?.detail || 'Delete failed', { variant: 'error' });
+    }
+  });
 
   const handleOpenCreate = () => {
     setEditUser(null);
@@ -75,45 +100,112 @@ function UserManagementPage() {
     setDialogOpen(true);
   };
 
-  const onSubmit = async (data) => {
-    try {
-      if (editUser) {
-        await api.put(`/api/users/${editUser.user_id}`, {
-          email: data.email,
-          full_name: data.full_name || null,
-          roles: data.roles,
-        });
-        enqueueSnackbar('User updated', { variant: 'success' });
-      } else {
-        await api.post('/api/users', {
-          username: data.username,
-          email: data.email,
-          password: data.password,
-          full_name: data.full_name || null,
-          roles: data.roles,
-        });
-        enqueueSnackbar('User created', { variant: 'success' });
-      }
-      setDialogOpen(false);
-      fetchUsers();
-    } catch (err) {
-      enqueueSnackbar(err.response?.data?.detail || 'Operation failed', { variant: 'error' });
+  const onSubmit = (data) => {
+    mutation.mutate(data);
+  };
+
+  const handleDelete = (userId) => {
+    if (window.confirm('Are you sure you want to deactivate this user?')) {
+      deleteMutation.mutate(userId);
     }
   };
 
-  const handleDelete = async (userId) => {
-    if (!window.confirm('Are you sure you want to deactivate this user?')) return;
-    try {
-      await api.delete(`/api/users/${userId}`);
-      enqueueSnackbar('User deactivated', { variant: 'success' });
-      fetchUsers();
-    } catch (err) {
-      enqueueSnackbar(err.response?.data?.detail || 'Delete failed', { variant: 'error' });
+  const columns = [
+    {
+      field: 'username',
+      headerName: 'User',
+      flex: 1,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, height: '100%' }}>
+          <Person sx={{ color: 'text.secondary' }} />
+          <Box sx={{ lineHeight: 1.2 }}>
+            <Typography variant="body2" fontWeight={600}>
+              {params.value}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {params.row.full_name || '—'}
+            </Typography>
+          </Box>
+        </Box>
+      )
+    },
+    {
+      field: 'email',
+      headerName: 'Email',
+      flex: 1,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'roles',
+      headerName: 'Roles',
+      flex: 1,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center', height: '100%' }}>
+          {params.value.map((r) => (
+            <Chip
+              key={r}
+              label={r}
+              size="small"
+              color={r === 'ADMIN' ? 'error' : r === 'AUDITOR' ? 'primary' : 'default'}
+              sx={{ fontWeight: 600, fontSize: '0.65rem' }}
+            />
+          ))}
+        </Box>
+      )
+    },
+    {
+      field: 'is_active',
+      headerName: 'Status',
+      width: 120,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip
+            label={params.value ? 'Active' : 'Inactive'}
+            color={params.value ? 'success' : 'default'}
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
+      )
+    },
+    {
+      field: 'created_at',
+      headerName: 'Created',
+      width: 150,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {new Date(params.value).toLocaleDateString()}
+        </Typography>
+      )
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 120,
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: '100%', width: '100%' }}>
+          <Tooltip title="Edit">
+            <IconButton size="small" onClick={() => handleOpenEdit(params.row)} sx={{ color: '#00D4FF' }}>
+              <Edit fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Deactivate">
+            <IconButton size="small" onClick={() => handleDelete(params.row.user_id)} sx={{ color: '#FF1744' }}>
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )
     }
-  };
+  ];
 
   return (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
@@ -133,100 +225,33 @@ function UserManagementPage() {
         </Button>
       </Box>
 
-      <Card className="fade-in-up">
-        <CardContent sx={{ p: 0 }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>User</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Roles</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 6 }).map((_, j) => (
-                        <TableCell key={j}><Skeleton variant="text" /></TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : (
-                  users.map((u) => (
-                    <TableRow
-                      key={u.user_id}
-                      sx={{
-                        transition: 'background 0.2s',
-                        '&:hover': { backgroundColor: 'rgba(0,212,255,0.03)' },
-                      }}
-                    >
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Person sx={{ color: 'text.secondary' }} />
-                          <Box>
-                            <Typography variant="body2" fontWeight={600}>
-                              {u.username}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {u.full_name || '—'}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {u.email}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                          {u.roles.map((r) => (
-                            <Chip
-                              key={r}
-                              label={r}
-                              size="small"
-                              color={r === 'ADMIN' ? 'error' : r === 'AUDITOR' ? 'primary' : 'default'}
-                              sx={{ fontWeight: 600, fontSize: '0.65rem' }}
-                            />
-                          ))}
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={u.is_active ? 'Active' : 'Inactive'}
-                          color={u.is_active ? 'success' : 'default'}
-                          size="small"
-                          sx={{ fontWeight: 600 }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => handleOpenEdit(u)} sx={{ color: '#00D4FF' }}>
-                            <Edit fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Deactivate">
-                          <IconButton size="small" onClick={() => handleDelete(u.user_id)} sx={{ color: '#FF1744' }}>
-                            <Delete fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+      <Card className="fade-in-up" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flexGrow: 1, minHeight: 400 }}>
+          <DataGrid
+            rows={users}
+            columns={columns}
+            getRowId={(row) => row.user_id}
+            loading={isLoading}
+            disableRowSelectionOnClick
+            initialState={{
+              pagination: { paginationModel: { pageSize: 10 } },
+            }}
+            pageSizeOptions={[10, 25, 50]}
+            sx={{
+              border: 'none',
+              '& .MuiDataGrid-cell': {
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+              },
+              '& .MuiDataGrid-columnHeaders': {
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                color: '#E2E8F0',
+              },
+              '& .MuiDataGrid-footerContainer': {
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              },
+            }}
+          />
         </CardContent>
       </Card>
 
@@ -311,10 +336,10 @@ function UserManagementPage() {
             />
           </DialogContent>
           <DialogActions sx={{ p: 3, pt: 1 }}>
-            <Button onClick={() => setDialogOpen(false)} color="inherit">
+            <Button onClick={() => setDialogOpen(false)} color="inherit" disabled={mutation.isPending}>
               Cancel
             </Button>
-            <Button type="submit" variant="contained">
+            <Button type="submit" variant="contained" disabled={mutation.isPending}>
               {editUser ? 'Update' : 'Create'}
             </Button>
           </DialogActions>

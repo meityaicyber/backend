@@ -5,32 +5,25 @@ import {
   Card,
   CardContent,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
   Chip,
   IconButton,
   TextField,
   InputAdornment,
   Tooltip,
-  Skeleton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
   Button,
-  CircularProgress,
   Collapse,
   Divider,
   LinearProgress,
   Tabs,
   Tab,
 } from '@mui/material';
+import { DataGrid } from '@mui/x-data-grid';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search,
   Visibility,
@@ -81,6 +74,7 @@ const riskLevelGradient = {
 };
 
 /* ──────────── Pipeline Results Dialog ──────────── */
+// Keeping PipelineResultsDialog unchanged...
 function PipelineResultsDialog({ open, onClose, results, reportName }) {
   const [tabValue, setTabValue] = useState(0);
   const [expandedSections, setExpandedSections] = useState({
@@ -242,8 +236,6 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
               )}
             </Box>
           </Box>
-
-          {/* Confidence Box Removed as not present in masterjson */}
         </Box>
 
         {/* ── Vulnerabilities Details ── */}
@@ -489,41 +481,14 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         )}
 
         {tabValue === 2 && (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>ID</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Severity</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Title</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>Location</TableCell>
-                  <TableCell sx={{ color: 'rgba(255,255,255,0.7)' }}>CVSS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {(vulnsArray).map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell sx={{ fontFamily: 'monospace', color: '#fff' }}>{v.id}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={v.severity}
-                        size="small"
-                        sx={{
-                          bgcolor: `${severityColor[v.severity] || '#aaa'}20`,
-                          color: severityColor[v.severity] || '#aaa',
-                          fontWeight: 700,
-                          fontSize: '0.65rem'
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: 600, color: '#fff' }}>{v.vulnerability_title}</TableCell>
-                    <TableCell sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>{v.detailed_observation}</TableCell>
-                    <TableCell sx={{ color: '#fff' }}>{v.cvss_score || 'N/A'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <Box sx={{ p: 2 }}>
+             {vulnsArray.map((v) => (
+                <Box key={v.id} sx={{ mb: 2, p: 2, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 1 }}>
+                   <Typography variant="subtitle2" color="primary">{v.vulnerability_title}</Typography>
+                   <Typography variant="caption" color="text.secondary">Severity: {v.severity}</Typography>
+                </Box>
+             ))}
+          </Box>
         )}
       </DialogContent>
     </Dialog>
@@ -535,11 +500,9 @@ function ReportsPage() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
-  const [reports, setReports] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const queryClient = useQueryClient();
+
+  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 });
   const [search, setSearch] = useState('');
   const [searchDebounce, setSearchDebounce] = useState('');
 
@@ -554,27 +517,22 @@ function ReportsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    const fetchReports = async () => {
-      setLoading(true);
-      try {
-        const params = {
-          skip: page * rowsPerPage,
-          limit: rowsPerPage,
-        };
-        if (searchDebounce) params.search = searchDebounce;
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['reports', paginationModel.page, paginationModel.pageSize, searchDebounce],
+    queryFn: async () => {
+      const params = {
+        skip: paginationModel.page * paginationModel.pageSize,
+        limit: paginationModel.pageSize,
+      };
+      if (searchDebounce) params.search = searchDebounce;
+      const response = await api.get('/api/reports', { params });
+      return response.data;
+    },
+    keepPreviousData: true,
+  });
 
-        const response = await api.get('/api/reports', { params });
-        setReports(response.data.reports);
-        setTotal(response.data.total);
-      } catch (err) {
-        enqueueSnackbar('Failed to load reports', { variant: 'error' });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchReports();
-  }, [page, rowsPerPage, searchDebounce, enqueueSnackbar]);
+  const reports = data?.reports || [];
+  const total = data?.total || 0;
 
   const handleDownload = async (reportId, filename) => {
     try {
@@ -628,6 +586,7 @@ function ReportsPage() {
       setPipelineResults((prev) => ({ ...prev, [reportId]: response.data }));
       setPipelineStatus((prev) => ({ ...prev, [reportId]: 'completed' }));
       enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
+      refetch();
     } catch (err) {
       setPipelineStatus((prev) => ({ ...prev, [reportId]: 'error' }));
       const detail = err.response?.data?.detail || 'Pipeline failed';
@@ -731,8 +690,196 @@ function ReportsPage() {
     );
   };
 
+  const columns = [
+    {
+      field: 'original_filename',
+      headerName: 'File',
+      flex: 1.5,
+      renderCell: (params) => {
+        const report = params.row;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
+            <Typography fontSize="1.2rem">
+              {extIcon[report.file_extension] || '📄'}
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 200 }}>
+                  {report.original_filename}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {report.file_extension.toUpperCase()}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                  SHA256: {report.sha256_hash.substring(0, 16)}...
+                </Typography>
+                {report.simhash && (
+                  <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
+                    SimHash: {report.simhash}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          </Box>
+        );
+      }
+    },
+    {
+      field: 'agency',
+      headerName: 'Agency',
+      width: 150,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {params.row.agency?.agency_name || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'version',
+      headerName: 'Version',
+      width: 130,
+      renderCell: (params) => {
+        const report = params.row;
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+            {report.partial_duplicate ? (
+              <Link
+                to={`/reports/${report.partial_duplicate.original_report_id}`}
+                style={{ textDecoration: 'none' }}
+              >
+                <Chip
+                  label="Partial Duplicate"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}
+                />
+              </Link>
+            ) : (
+              <Chip
+                label="Original"
+                size="small"
+                color="success"
+                variant="outlined"
+                sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+              />
+            )}
+          </Box>
+        );
+      }
+    },
+    {
+      field: 'uploader_username',
+      headerName: 'Uploader',
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {params.value || '—'}
+        </Typography>
+      )
+    },
+    {
+      field: 'file_size',
+      headerName: 'Size',
+      width: 100,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {(params.value / 1024).toFixed(1)} KB
+        </Typography>
+      )
+    },
+    {
+      field: 'upload_status',
+      headerName: 'Status',
+      width: 130,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          <Chip
+            label={params.value}
+            color={statusColor[params.value] || 'default'}
+            size="small"
+            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+          />
+        </Box>
+      )
+    },
+    {
+      field: 'pipeline',
+      headerName: 'Pipeline',
+      width: 130,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {renderPipelineChip(params.row)}
+        </Box>
+      )
+    },
+    {
+      field: 'created_at',
+      headerName: 'Date',
+      width: 120,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {new Date(params.value).toLocaleDateString()}
+        </Typography>
+      )
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      flex: 1.5,
+      sortable: false,
+      renderCell: (params) => {
+        const report = params.row;
+        return (
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%', width: '100%', pr: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Security fontSize="small" />}
+              onClick={() => handleViewResults(report)}
+              sx={{ color: '#FFD600', borderColor: 'rgba(255,214,0,0.5)', '&:hover': { borderColor: '#FFD600', bgcolor: 'rgba(255,214,0,0.1)' }, textTransform: 'none', px: 1, py: 0.25, minWidth: 0 }}
+            >
+              Results
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Visibility fontSize="small" />}
+              onClick={() => navigate(`/reports/${report.report_id}`)}
+              sx={{ color: '#00D4FF', borderColor: 'rgba(0,212,255,0.5)', '&:hover': { borderColor: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' }, textTransform: 'none', px: 1, py: 0.25, minWidth: 0 }}
+            >
+              View
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<Download fontSize="small" />}
+              onClick={() => handleDownload(report.report_id, report.original_filename)}
+              sx={{ color: '#00E676', borderColor: 'rgba(0,230,118,0.5)', '&:hover': { borderColor: '#00E676', bgcolor: 'rgba(0,230,118,0.1)' }, textTransform: 'none', px: 1, py: 0.25, minWidth: 0 }}
+            >
+              Down
+            </Button>
+            {isAdmin() && (
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Delete fontSize="small" />}
+                onClick={() => handleDelete(report.report_id)}
+                sx={{ color: '#FF1744', borderColor: 'rgba(255,23,68,0.5)', '&:hover': { borderColor: '#FF1744', bgcolor: 'rgba(255,23,68,0.1)' }, textTransform: 'none', px: 1, py: 0.25, minWidth: 0 }}
+              >
+                Del
+              </Button>
+            )}
+          </Box>
+        );
+      }
+    }
+  ];
+
   return (
-    <Box>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
           <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
@@ -761,194 +908,42 @@ function ReportsPage() {
         }}
       />
 
-      {/* Table */}
-      <Card className="fade-in-up">
-        <CardContent sx={{ p: 0 }}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>File</TableCell>
-                  <TableCell>Agency</TableCell>
-                  <TableCell>Version</TableCell>
-                  <TableCell>Uploader</TableCell>
-                  <TableCell>Size</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Pipeline</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
-                      {Array.from({ length: 9 }).map((_, j) => (
-                        <TableCell key={j}>
-                          <Skeleton variant="text" />
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
-                ) : reports.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
-                      <Description sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
-                      <Typography color="text.secondary">No reports found</Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  reports.map((report) => (
-                    <TableRow
-                      key={report.report_id}
-                      sx={{
-                        transition: 'background 0.2s',
-                        '&:hover': { backgroundColor: 'rgba(0,212,255,0.03)' },
-                      }}
-                    >
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography fontSize="1.2rem">
-                            {extIcon[report.file_extension] || '📄'}
-                          </Typography>
-                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="body2" fontWeight={600} noWrap sx={{ maxWidth: 250 }}>
-                                {report.original_filename}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {report.file_extension.toUpperCase()}
-                              </Typography>
-                            </Box>
-                            {/* Hashes */}
-                            <Box sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                                SHA256: {report.sha256_hash.substring(0, 16)}...
-                              </Typography>
-                              {report.simhash && (
-                                <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.65rem' }}>
-                                  SimHash: {report.simhash}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {report.agency?.agency_name || '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {report.partial_duplicate ? (
-                          <Link
-                            to={`/reports/${report.partial_duplicate.original_report_id}`}
-                            style={{ textDecoration: 'none' }}
-                          >
-                            <Chip
-                              label="Partial Duplicate"
-                              size="small"
-                              color="warning"
-                              variant="outlined"
-                              sx={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.7rem' }}
-                            />
-                          </Link>
-                        ) : (
-                          <Chip
-                            label="Original"
-                            size="small"
-                            color="success"
-                            variant="outlined"
-                            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {report.uploader_username || '—'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {(report.file_size / 1024).toFixed(1)} KB
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={report.upload_status}
-                          color={statusColor[report.upload_status] || 'default'}
-                          size="small"
-                          sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {renderPipelineChip(report)}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" color="text.secondary">
-                          {new Date(report.created_at).toLocaleDateString()}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<Security fontSize="small" />}
-                            onClick={() => handleViewResults(report)}
-                            sx={{ color: '#FFD600', borderColor: 'rgba(255,214,0,0.5)', '&:hover': { borderColor: '#FFD600', bgcolor: 'rgba(255,214,0,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
-                          >
-                            AI Results
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<Visibility fontSize="small" />}
-                            onClick={() => navigate(`/reports/${report.report_id}`)}
-                            sx={{ color: '#00D4FF', borderColor: 'rgba(0,212,255,0.5)', '&:hover': { borderColor: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
-                          >
-                            View
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            startIcon={<Download fontSize="small" />}
-                            onClick={() => handleDownload(report.report_id, report.original_filename)}
-                            sx={{ color: '#00E676', borderColor: 'rgba(0,230,118,0.5)', '&:hover': { borderColor: '#00E676', bgcolor: 'rgba(0,230,118,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
-                          >
-                            Download
-                          </Button>
-                          {isAdmin() && (
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<Delete fontSize="small" />}
-                              onClick={() => handleDelete(report.report_id)}
-                              sx={{ color: '#FF1744', borderColor: 'rgba(255,23,68,0.5)', '&:hover': { borderColor: '#FF1744', bgcolor: 'rgba(255,23,68,0.1)' }, textTransform: 'none', px: 1, py: 0.25 }}
-                            >
-                              Delete
-                            </Button>
-                          )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            component="div"
-            count={total}
-            page={page}
-            onPageChange={(_, p) => setPage(p)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0);
+      <Card className="fade-in-up" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flexGrow: 1, height: 600 }}>
+          <DataGrid
+            rows={reports}
+            columns={columns}
+            getRowId={(row) => row.report_id}
+            rowCount={total}
+            loading={isLoading}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
+            pageSizeOptions={[5, 10, 25, 50]}
+            disableRowSelectionOnClick
+            rowHeight={80}
+            sx={{
+              border: 'none',
+              '& .MuiDataGrid-cell': {
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+              },
+              '& .MuiDataGrid-columnHeaders': {
+                backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                color: '#E2E8F0',
+              },
+              '& .MuiDataGrid-footerContainer': {
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              },
             }}
-            rowsPerPageOptions={[5, 10, 25, 50]}
-            sx={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+            slots={{
+              noRowsOverlay: () => (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Description sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                  <Typography color="text.secondary">No reports found</Typography>
+                </Box>
+              ),
+            }}
           />
         </CardContent>
       </Card>

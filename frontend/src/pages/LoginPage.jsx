@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   Box,
   Paper,
@@ -15,6 +17,11 @@ import {
 import { Visibility, VisibilityOff, Shield, Lock, Person } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 function LoginPage() {
   const { login, user } = useAuth();
   const navigate = useNavigate();
@@ -26,7 +33,9 @@ function LoginPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    resolver: zodResolver(loginSchema),
+  });
 
   // Redirect if already logged in
   React.useEffect(() => {
@@ -121,7 +130,7 @@ function LoginPage() {
             fullWidth
             label="Username"
             autoFocus
-            {...register('username', { required: 'Username is required' })}
+            {...register('username')}
             error={!!errors.username}
             helperText={errors.username?.message}
             sx={{ mb: 2.5 }}
@@ -139,7 +148,7 @@ function LoginPage() {
             fullWidth
             label="Password"
             type={showPassword ? 'text' : 'password'}
-            {...register('password', { required: 'Password is required' })}
+            {...register('password')}
             error={!!errors.password}
             helperText={errors.password?.message}
             sx={{ mb: 3 }}

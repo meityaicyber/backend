@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   AppBar,
   Box,
@@ -322,9 +323,16 @@ function Layout() {
           height: 'calc(100vh - 64px)',
         }}
       >
-        <Box key={location.pathname} className="page-transition">
+        <motion.div
+          key={location.pathname}
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -15 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          style={{ height: '100%' }}
+        >
           <Outlet />
-        </Box>
+        </motion.div>
       </Box>
     </Box>
   );
