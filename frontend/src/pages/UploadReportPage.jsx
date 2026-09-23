@@ -9,6 +9,7 @@ import {
 import { useSnackbar } from 'notistack';
 import api from '../api/axios';
 import * as XLSX from 'xlsx';
+import { useBulkUpload } from '../contexts/BulkUploadContext';
 
 function UploadReportPage() {
   const { enqueueSnackbar } = useSnackbar();
@@ -32,16 +33,11 @@ function UploadReportPage() {
   const [pdfFiles, setPdfFiles] = useState([]);
   const [batchMode, setBatchMode] = useState('sequential');
   
-  // Array of { id, file, name, status, details }
-  // Status: 'Pending' | 'Uploading' | 'Pipeline' | 'Success' | 'Failed'
-  const [bulkFilesData, setBulkFilesData] = useState([]);
-  
-  const [bulkProgress, setBulkProgress] = useState(0);
-  const [bulkTotal, setBulkTotal] = useState(0);
-  const [bulkRunning, setBulkRunning] = useState(false);
-  const [bulkFinished, setBulkFinished] = useState(false);
-  const [bulkStartTime, setBulkStartTime] = useState(null);
-  const [bulkEndTime, setBulkEndTime] = useState(null);
+  // Use global context for bulk tracking
+  const {
+    bulkFilesData, setBulkFilesData, bulkProgress, bulkTotal, bulkRunning, bulkFinished, setBulkFinished,
+    bulkStartTime, bulkEndTime, startBulkUpload, resetBulkState
+  } = useBulkUpload();
   const [generatingExcel, setGeneratingExcel] = useState(false);
   const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
 
@@ -154,13 +150,6 @@ function UploadReportPage() {
       setBulkFinished(false);
     }
   };
-
-  const updateFileStatus = (id, status, details) => {
-    setBulkFilesData(prev => prev.map(item => 
-      item.id === id ? { ...item, status, details } : item
-    ));
-  };
-
 
   const handleGenerateMapping = async (e) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -278,83 +267,10 @@ function UploadReportPage() {
       }
     }
 
-    setBulkRunning(true);
-    setBulkFinished(false);
-    setBulkProgress(0);
-    setBulkTotal(pdfFiles.length);
-    setBulkStartTime(Date.now());
-    setBulkEndTime(null);
-
-    // Reset status for all files to pending
-    setBulkFilesData(prev => prev.map(item => ({...item, status: 'Pending', details: '-'})));
-
     const concurrency = batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1);
-    let currentIndex = 0;
-
-    const processNext = async () => {
-      let localIndex;
-      localIndex = currentIndex++;
-      if (localIndex >= pdfFiles.length) return;
-      
-      const fileData = bulkFilesData[localIndex];
-      const file = fileData.file;
-      const cleanName = fileData.name;
-      const baseName = cleanName.replace(/\.[^/.]+$/, "");
-      const matchedPassword = passwordMap[baseName.toLowerCase()] || passwordMap[cleanName.toLowerCase()] || '';
-
-      let reportId = null;
-
-      try {
-        updateFileStatus(localIndex, 'Uploading', 'Uploading to storage...');
-
-        const formData = new FormData();
-        formData.append('file', file, cleanName);
-        if (selectedAgency) formData.append('agency_id', selectedAgency);
-        if (matchedPassword) formData.append('file_password', matchedPassword);
-
-        // 1. Upload
-        const uploadRes = await api.post('/api/reports/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        reportId = uploadRes.data.report_id;
-
-        // 2. Run Pipeline
-        updateFileStatus(localIndex, 'Pipeline', 'Running AI Pipeline...');
-        await api.post(`/api/reports/${reportId}/run-pipeline`);
-        
-        updateFileStatus(localIndex, 'Success', 'File saved and pipeline completed.');
-      } catch (err) {
-        const msg = err.response?.data?.detail || err.message || 'Operation Failed';
-        
-        if (reportId) {
-          updateFileStatus(localIndex, 'Failed', `${msg} (Rolling back...)`);
-          // Rollback: delete from system
-          try {
-             await api.delete(`/api/reports/${reportId}`);
-             updateFileStatus(localIndex, 'Failed', `${msg}. File deleted from system.`);
-          } catch(rollbackErr) {
-             updateFileStatus(localIndex, 'Failed', `${msg}. Rollback failed: ${rollbackErr.message}`);
-          }
-        } else {
-          updateFileStatus(localIndex, 'Failed', msg);
-        }
-      }
-      
-      setBulkProgress(prev => prev + 1);
-      await processNext();
-    };
-
-    const workers = [];
-    for (let i = 0; i < concurrency; i++) {
-      workers.push(processNext());
-    }
     
-    await Promise.all(workers);
-    
-    setBulkEndTime(Date.now());
-    setBulkRunning(false);
-    setBulkFinished(true);
-    enqueueSnackbar('Bulk processing completed', {variant: 'success'});
+    // Call the context function
+    await startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency);
   };
 
   const renderStatusChip = (status) => {

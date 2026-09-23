@@ -6,6 +6,7 @@ import { Box, CircularProgress } from '@mui/material';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import RoleGuard from './components/RoleGuard';
+import BulkProgressWidget from './components/BulkProgressWidget';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -81,6 +82,7 @@ function App() {
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
+      <BulkProgressWidget />
     </>
   );
 }

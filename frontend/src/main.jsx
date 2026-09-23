@@ -5,6 +5,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material'
 import { SnackbarProvider } from 'notistack'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { BulkUploadProvider } from './contexts/BulkUploadContext'
 import theme from './theme'
 import './index.css'
 
@@ -19,7 +20,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           autoHideDuration={4000}
         >
           <AuthProvider>
-            <App />
+            <BulkUploadProvider>
+              <App />
+            </BulkUploadProvider>
           </AuthProvider>
         </SnackbarProvider>
       </ThemeProvider>
