@@ -196,7 +196,7 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
             <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 600 }}>
               Overall Risk Score
             </Typography>
-            <Typography variant="h4" fontWeight={800} sx={{ color: '#fff', mt: 1 }}>
+            <Typography variant="h4" fontWeight={800} sx={{ color: '#fff', mt: 1 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
               {execSummary.summary_text || riskLevel}
             </Typography>
             <Chip

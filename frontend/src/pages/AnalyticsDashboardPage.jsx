@@ -574,7 +574,7 @@ export default function AnalyticsDashboardPage() {
       {/* ── Header ── */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3.5 }}>
         <Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
             Security Analytics
           </Typography>
           <Typography variant="body2" color="text.secondary">

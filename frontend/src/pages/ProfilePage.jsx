@@ -48,7 +48,7 @@ function ProfilePage() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
+      <Typography variant="h4" fontWeight={800} sx={{ mb: 1 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
         Profile
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>

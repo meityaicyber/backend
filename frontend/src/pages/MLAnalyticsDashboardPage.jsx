@@ -72,7 +72,7 @@ export default function MLAnalyticsDashboardPage() {
   if (loading) {
     return (
       <Box>
-        <Typography variant="h4" fontWeight={800} sx={{ mb: 4 }}>AI Risk Analytics</Typography>
+        <Typography variant="h4" fontWeight={800} sx={{ mb: 4 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>AI Risk Analytics</Typography>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}><Skeleton variant="rounded" height={300} sx={{ borderRadius: 3 }} /></Grid>
           <Grid item xs={12} md={6}><Skeleton variant="rounded" height={300} sx={{ borderRadius: 3 }} /></Grid>

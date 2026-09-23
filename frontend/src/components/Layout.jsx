@@ -125,11 +125,26 @@ function Layout() {
                   borderRadius: 2,
                   py: 1.2,
                   px: 2,
-                  transition: 'all 0.2s ease',
-                  backgroundColor: isActive ? 'rgba(0, 212, 255, 0.1)' : 'transparent',
-                  borderLeft: isActive ? '3px solid #00D4FF' : '3px solid transparent',
+                  mb: 0.5,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  backgroundColor: isActive ? 'rgba(0, 212, 255, 0.08)' : 'transparent',
+                  borderLeft: isActive ? '4px solid #00D4FF' : '4px solid transparent',
+                  boxShadow: isActive ? 'inset 20px 0 20px -20px rgba(0,212,255,0.5)' : 'none',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': isActive ? {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, rgba(0,212,255,0.1) 0%, transparent 100%)',
+                    zIndex: 0
+                  } : {},
                   '&:hover': {
-                    backgroundColor: 'rgba(0, 212, 255, 0.06)',
+                    backgroundColor: isActive ? 'rgba(0, 212, 255, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                    transform: 'translateX(4px)',
                   },
                 }}
               >
@@ -137,12 +152,17 @@ function Layout() {
                   sx={{
                     minWidth: 40,
                     color: isActive ? '#00D4FF' : 'text.secondary',
+                    zIndex: 1,
+                    transition: 'all 0.3s ease',
+                    transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                    filter: isActive ? 'drop-shadow(0 0 5px rgba(0,212,255,0.5))' : 'none',
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
                   primary={item.text}
+                  sx={{ zIndex: 1 }}
                   primaryTypographyProps={{
                     fontWeight: isActive ? 600 : 400,
                     fontSize: '0.875rem',

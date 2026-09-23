@@ -298,7 +298,7 @@ function UploadReportPage() {
         <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap', mt: 2 }}>
           <Box>
             <Typography variant="body2" color="text.secondary" fontWeight={600}>Total Files</Typography>
-            <Typography variant="h4" fontWeight={700}>{bulkTotal}</Typography>
+            <Typography variant="h4" fontWeight={700} sx={{ background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{bulkTotal}</Typography>
           </Box>
           <Box>
             <Typography variant="body2" color="text.secondary" fontWeight={600}>Successful</Typography>

@@ -61,7 +61,7 @@ function AuditLogsPage() {
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
         <Box>
-          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 }}>
+          <Typography variant="h4" fontWeight={800} sx={{ mb: 0.5 , background: '-webkit-linear-gradient(45deg, #00D4FF, #00E676)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>
             Audit Logs
           </Typography>
           <Typography variant="body2" color="text.secondary">
