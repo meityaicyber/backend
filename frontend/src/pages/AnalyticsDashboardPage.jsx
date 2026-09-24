@@ -25,6 +25,10 @@ import {
   ListItemText,
   OutlinedInput,
   Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import {
@@ -41,6 +45,9 @@ import {
   Storage,
   GppBad,
   Download,
+  DragIndicator,
+  OpenInFull,
+  Close,
 } from '@mui/icons-material';
 import {
   PieChart,
@@ -58,6 +65,22 @@ import {
   Legend,
 } from 'recharts';
 import api from '../api/axios';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 /* ─────────────────────── Color Palettes ─────────────────────── */
 const SEVERITY_COLORS = {
@@ -220,19 +243,46 @@ function KpiCard({ title, value, icon, color, delay = 0 }) {
 }
 
 /* ─────────────────── Chart Card Wrapper ─────────────────── */
-function ChartCard({ title, icon, children, delay = 0, sx: sxProp = {} }) {
+function ChartCard({ title, icon, children, delay = 0, sx: sxProp = {}, onExpand, dragHandleProps = {} }) {
   return (
-    <Card className="fade-in-up" sx={{ animationDelay: `${delay}ms`, height: '100%', ...sxProp }}>
-      <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, mb: 2.5 }}>
-          {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 22 } })}
-          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem' }}>
+    <Card className="fade-in-up" sx={{ animationDelay: `${delay}ms`, minHeight: 380, height: '100%', display: 'flex', flexDirection: 'column', ...sxProp }}>
+      <CardContent sx={{ p: 2, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box className="drag-handle" {...dragHandleProps} sx={{ cursor: 'grab', display: 'flex', alignItems: 'center', color: 'text.secondary', '&:active': { cursor: 'grabbing' } }}>
+            <DragIndicator sx={{ fontSize: 20 }} />
+          </Box>
+          {icon && React.cloneElement(icon, { sx: { color: '#00D4FF', fontSize: 20 } })}
+          <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '0.9rem' }}>
             {title}
           </Typography>
         </Box>
-        <Box sx={{ flex: 1, minHeight: 0 }}>{children}</Box>
+        {onExpand && (
+          <IconButton size="small" onClick={onExpand} sx={{ color: 'text.secondary', '&:hover': { color: '#00D4FF', bgcolor: 'rgba(0,212,255,0.1)' } }}>
+            <OpenInFull sx={{ fontSize: 18 }} />
+          </IconButton>
+        )}
       </CardContent>
+      <Box sx={{ p: 2, flex: 1, position: 'relative', minHeight: 300, width: '100%' }}>
+        <Box sx={{ position: 'absolute', top: 16, left: 16, right: 16, bottom: 16 }}>
+          {children}
+        </Box>
+      </Box>
     </Card>
+  );
+}
+
+function SortableWidget({ id, children, md }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    height: '100%', minHeight: 380, zIndex: transform ? 1 : 0,
+    position: 'relative'
+  };
+  return (
+    <Grid item xs={12} md={md} ref={setNodeRef} style={style}>
+      {React.cloneElement(children, { dragHandleProps: { ...attributes, ...listeners } })}
+    </Grid>
   );
 }
 
@@ -303,6 +353,41 @@ export default function AnalyticsDashboardPage() {
   const [files, setFiles] = useState([]);
   const [allVulns, setAllVulns] = useState([]);
 
+  const [expandedWidget, setExpandedWidget] = useState(null);
+
+  const initialWidgets = [
+    'severity', 'status',
+    'cvss', 'trend',
+    'category', 'cwe',
+    'cve', 'asset',
+    'newrepeat', 'table'
+  ];
+  const [widgets, setWidgets] = useState(initialWidgets);
+
+  const widgetWidths = {
+    severity: 6, status: 6,
+    cvss: 6, trend: 6,
+    category: 6, cwe: 6,
+    cve: 6, asset: 6,
+    newrepeat: 4, table: 8
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setWidgets((items) => {
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   const handleChartClick = (key, value) => {
     if (chartFilter.key === key && chartFilter.value === value) {
       setChartFilter({ key: null, value: null });
@@ -352,8 +437,8 @@ export default function AnalyticsDashboardPage() {
       try {
         setLoading(true);
         const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
-          api.get('/api/agencies?limit=1000'),
-          api.get('/api/reports?limit=1000'),
+          api.get('/api/agencies?limit=100'),
+          api.get('/api/reports?limit=100'),
           api.get('/api/analytics/vulnerabilities-raw')
         ]);
         
@@ -537,7 +622,9 @@ export default function AnalyticsDashboardPage() {
 
   /* ─── Loading skeleton ─── */
   if (loading) {
-    return (
+    
+  
+  return (
       <Box>
         <Skeleton variant="text" width={260} height={42} sx={{ mb: 1 }} />
         <Skeleton variant="text" width={380} height={24} sx={{ mb: 3 }} />
@@ -568,6 +655,349 @@ export default function AnalyticsDashboardPage() {
   };
 
   const agencyFiles = files.filter(f => f.agencyId === selectedAgencyId);
+
+
+  const renderWidget = (key) => {
+    switch(key) {
+    case 'severity':
+      return (
+        <ChartCard title="Severity Distribution" icon={<Shield />} delay={350} onExpand={() => setExpandedWidget('severity')}>
+            {severityDist && severityDist.some((d) => d.count > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={severityDist}
+                    dataKey="count"
+                    nameKey="severity"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="80%"
+                    paddingAngle={3}
+                    labelLine={false}
+                    label={renderDonutLabel}
+                    animationBegin={0}
+                    animationDuration={1000}
+                    animationEasing="ease-out"
+                  >
+                    {severityDist.map((entry) => (
+                      <Cell 
+                        key={entry.severity} 
+                        fill={SEVERITY_COLORS[entry.severity] || '#94A3B8'} 
+                        stroke="none" 
+                        onClick={() => handleChartClick('severity', entry.severity)}
+                        style={{ cursor: 'pointer', opacity: chartFilter.value === entry.severity ? 1 : (chartFilter.value ? 0.3 : 1) }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<GlassTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'status':
+      return (
+        <ChartCard title="Vulnerability Status" icon={<Layers />} delay={400} onExpand={() => setExpandedWidget('status')}>
+            {statusDist && statusDist.some((d) => d.count > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={statusDist}
+                    dataKey="count"
+                    nameKey="status"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="80%"
+                    paddingAngle={3}
+                    labelLine={false}
+                    label={renderDonutLabel}
+                    animationBegin={0}
+                    animationDuration={1000}
+                    animationEasing="ease-out"
+                  >
+                    {statusDist.map((entry) => (
+                      <Cell 
+                        key={entry.status} 
+                        fill={STATUS_COLORS[entry.status] || '#94A3B8'} 
+                        stroke="none" 
+                        onClick={() => handleChartClick('status', entry.status)}
+                        style={{ cursor: 'pointer', opacity: chartFilter.value === entry.status ? 1 : (chartFilter.value ? 0.3 : 1) }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<GlassTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'cvss':
+      return (
+        <ChartCard title="CVSS Score Distribution" icon={<Speed />} delay={450} onExpand={() => setExpandedWidget('cvss')}>
+            {cvssDist && cvssDist.some((d) => d.count > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={cvssDist} barSize={28}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="range" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Bar dataKey="count" name="Vulnerabilities" radius={[4, 4, 0, 0]} animationDuration={1000}>
+                    {cvssDist.map((_, idx) => {
+                      const colors = ['#00E676', '#00E676', '#69F0AE', '#FFD600', '#FFD600', '#FF9100', '#FF9100', '#FF1744', '#FF1744', '#D50000'];
+                      return <Cell key={idx} fill={colors[idx]} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'trend':
+      return (
+        <ChartCard title="Vulnerability Trend (12 Months)" icon={<TrendingUp />} delay={500} onExpand={() => setExpandedWidget('trend')}>
+            {trend && trend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend}>
+                  <defs>
+                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#00D4FF" stopOpacity={0.35} />
+                      <stop offset="100%" stopColor="#00D4FF" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="month" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
+                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    name="Vulnerabilities"
+                    stroke="#00D4FF"
+                    strokeWidth={2.5}
+                    fill="url(#trendGrad)"
+                    dot={{ fill: '#00D4FF', r: 4, strokeWidth: 0 }}
+                    activeDot={{ r: 6, fill: '#00D4FF', stroke: '#0A0E17', strokeWidth: 2 }}
+                    animationDuration={1200}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState message="No trend data available" />
+            )}
+          </ChartCard>
+      );
+    case 'category':
+      return (
+        <ChartCard title="Top Vulnerability Categories" icon={<Category />} delay={550} onExpand={() => setExpandedWidget('category')}>
+            {categories && categories.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={categories} layout="vertical" barSize={16} margin={{ left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <YAxis
+                    dataKey="category"
+                    type="category"
+                    width={160}
+                    tick={{ fill: '#94A3B8', fontSize: 11 }}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                    tickFormatter={(val) => (val.length > 22 ? `${val.substring(0, 22)}…` : val)}
+                  />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Bar dataKey="count" name="Count" radius={[0, 4, 4, 0]} animationDuration={1000}>
+                    {categories.map((_, idx) => (
+                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'cwe':
+      return (
+        <ChartCard title="Top CWE Weaknesses" icon={<Shield />} delay={600} onExpand={() => setExpandedWidget('cwe')}>
+            {topCwe && topCwe.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topCwe} barSize={24}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="cwe_id" tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} angle={-30} textAnchor="end" height={60} />
+                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Bar dataKey="count" name="Occurrences" radius={[4, 4, 0, 0]} animationDuration={1000}>
+                    {topCwe.map((_, idx) => (
+                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'cve':
+      return (
+        <ChartCard title="Top CVE IDs" icon={<GppBad />} delay={650} onExpand={() => setExpandedWidget('cve')}>
+            {topCve && topCve.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topCve} barSize={24}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="cve_id" tick={{ fill: '#94A3B8', fontSize: 9 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} angle={-35} textAnchor="end" height={70} />
+                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Bar dataKey="count" name="Occurrences" radius={[4, 4, 0, 0]} animationDuration={1000}>
+                    {topCve.map((_, idx) => (
+                      <Cell key={idx} fill={CHART_COLORS[(idx + 5) % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'asset':
+      return (
+        <ChartCard title="Most Affected Assets" icon={<Storage />} delay={700} onExpand={() => setExpandedWidget('asset')}>
+            {assets && assets.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={assets} layout="vertical" barSize={16} margin={{ left: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
+                  <YAxis
+                    dataKey="asset"
+                    type="category"
+                    width={180}
+                    tick={{ fill: '#94A3B8', fontSize: 10 }}
+                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
+                    tickFormatter={(val) => (val.length > 25 ? `${val.substring(0, 25)}…` : val)}
+                  />
+                  <Tooltip content={<GlassTooltip />} />
+                  <Bar dataKey="count" name="Vulnerabilities" radius={[0, 4, 4, 0]} animationDuration={1000}>
+                    {assets.map((_, idx) => (
+                      <Cell key={idx} fill={CHART_COLORS[(idx + 3) % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'newrepeat':
+      return (
+        <ChartCard title="New vs Repeat Findings" icon={<Repeat />} delay={750} onExpand={() => setExpandedWidget('newrepeat')}>
+            {newRepeat && newRepeat.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={newRepeat}
+                    dataKey="count"
+                    nameKey="type"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="80%"
+                    paddingAngle={4}
+                    labelLine={false}
+                    label={renderDonutLabel}
+                    animationDuration={1000}
+                  >
+                    {newRepeat.map((_, idx) => (
+                      <Cell key={idx} fill={idx === 0 ? '#00D4FF' : '#FF9100'} stroke="none" />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<GlassTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    iconSize={8}
+                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+      );
+    case 'table':
+      return (
+        <ChartCard 
+            title={`Vulnerabilities ${chartFilter.value ? `(Filtered by ${chartFilter.value})` : ''}`} 
+            icon={<BugReport />} 
+            delay={800}
+            onExpand={() => setExpandedWidget('table')}
+            sx={{
+              '& .MuiDataGrid-root': {
+                border: 'none',
+                color: 'text.primary',
+              },
+              '& .MuiDataGrid-cell': {
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+              },
+              '& .MuiDataGrid-columnHeaders': {
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                backgroundColor: 'rgba(17, 24, 39, 0.4)',
+              },
+              '& .MuiDataGrid-footerContainer': {
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+              },
+              '& .MuiTablePagination-root': {
+                color: 'text.secondary',
+              },
+              '& .MuiDataGrid-iconSeparator': {
+                display: 'none',
+              },
+            }}
+          >
+            {tableVulns && tableVulns.length > 0 ? (
+              <Box sx={{ height: '100%', width: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}>
+                <DataGrid
+                  rows={tableVulns}
+                  columns={columns}
+                  pageSizeOptions={[5, 10, 25]}
+                  initialState={{
+                    pagination: { paginationModel: { pageSize: 5 } },
+                  }}
+                  disableRowSelectionOnClick
+                />
+              </Box>
+            ) : (
+              <EmptyState message="No vulnerabilities match the current filters" />
+            )}
+          </ChartCard>
+      );
+
+      default: return null;
+    }
+  };
 
   return (
     <Box>
@@ -769,364 +1199,156 @@ export default function AnalyticsDashboardPage() {
         </Grid>
       </Grid>
 
-      {/* ═══════ ROW 1 — Severity Donut + Status Pie ═══════ */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {/* Severity Distribution Donut */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Severity Distribution" icon={<Shield />} delay={350}>
-            {severityDist && severityDist.some((d) => d.count > 0) ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={severityDist}
-                    dataKey="count"
-                    nameKey="severity"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={65}
-                    outerRadius={110}
-                    paddingAngle={3}
-                    labelLine={false}
-                    label={renderDonutLabel}
-                    animationBegin={0}
-                    animationDuration={1000}
-                    animationEasing="ease-out"
-                  >
-                    {severityDist.map((entry) => (
-                      <Cell 
-                        key={entry.severity} 
-                        fill={SEVERITY_COLORS[entry.severity] || '#94A3B8'} 
-                        stroke="none" 
-                        onClick={() => handleChartClick('severity', entry.severity)}
-                        style={{ cursor: 'pointer', opacity: chartFilter.value === entry.severity ? 1 : (chartFilter.value ? 0.3 : 1) }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<GlassTooltip />} />
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
+      {/* ═══════ DRAGGABLE WIDGETS ═══════ */}
+      
+      {/* ═══════ DRAGGABLE WIDGETS ═══════ */}
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={widgets} strategy={rectSortingStrategy}>
+          <Grid container spacing={2.5}>
+            {widgets.map(key => (
+              <SortableWidget key={key} id={key} md={widgetWidths[key]}>
+                {renderWidget(key)}
+              </SortableWidget>
+            ))}
+          </Grid>
+        </SortableContext>
+      </DndContext>
 
-        {/* Status Distribution Pie */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Vulnerability Status" icon={<Layers />} delay={400}>
-            {statusDist && statusDist.some((d) => d.count > 0) ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusDist}
-                    dataKey="count"
-                    nameKey="status"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={65}
-                    outerRadius={110}
-                    paddingAngle={3}
-                    labelLine={false}
-                    label={renderDonutLabel}
-                    animationBegin={0}
-                    animationDuration={1000}
-                    animationEasing="ease-out"
-                  >
-                    {statusDist.map((entry) => (
-                      <Cell 
-                        key={entry.status} 
-                        fill={STATUS_COLORS[entry.status] || '#94A3B8'} 
-                        stroke="none" 
-                        onClick={() => handleChartClick('status', entry.status)}
-                        style={{ cursor: 'pointer', opacity: chartFilter.value === entry.status ? 1 : (chartFilter.value ? 0.3 : 1) }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<GlassTooltip />} />
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-      </Grid>
 
-      {/* ═══════ ROW 2 — CVSS Histogram + Trend ═══════ */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {/* CVSS Distribution Histogram */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="CVSS Score Distribution" icon={<Speed />} delay={450}>
-            {cvssDist && cvssDist.some((d) => d.count > 0) ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={cvssDist} barSize={28}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="range" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="count" name="Vulnerabilities" radius={[4, 4, 0, 0]} animationDuration={1000}>
-                    {cvssDist.map((_, idx) => {
-                      const colors = ['#00E676', '#00E676', '#69F0AE', '#FFD600', '#FFD600', '#FF9100', '#FF9100', '#FF1744', '#FF1744', '#D50000'];
-                      return <Cell key={idx} fill={colors[idx]} />;
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-
-        {/* Vulnerability Trend (Area) */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Vulnerability Trend (12 Months)" icon={<TrendingUp />} delay={500}>
-            {trend && trend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={trend}>
-                  <defs>
-                    <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#00D4FF" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#00D4FF" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="month" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} />
-                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    name="Vulnerabilities"
-                    stroke="#00D4FF"
-                    strokeWidth={2.5}
-                    fill="url(#trendGrad)"
-                    dot={{ fill: '#00D4FF', r: 4, strokeWidth: 0 }}
-                    activeDot={{ r: 6, fill: '#00D4FF', stroke: '#0A0E17', strokeWidth: 2 }}
-                    animationDuration={1200}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState message="No trend data available" />
-            )}
-          </ChartCard>
-        </Grid>
-      </Grid>
-
-      {/* ═══════ ROW 3 — Categories + Top CWE ═══════ */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {/* Top Vulnerability Categories */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Top Vulnerability Categories" icon={<Category />} delay={550}>
-            {categories && categories.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(300, categories.length * 32)}>
-                <BarChart data={categories} layout="vertical" barSize={16} margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <YAxis
-                    dataKey="category"
-                    type="category"
-                    width={160}
-                    tick={{ fill: '#94A3B8', fontSize: 11 }}
-                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-                    tickFormatter={(val) => (val.length > 22 ? `${val.substring(0, 22)}…` : val)}
-                  />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="count" name="Count" radius={[0, 4, 4, 0]} animationDuration={1000}>
-                    {categories.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-
-        {/* Top CWE Weaknesses */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Top CWE Weaknesses" icon={<Shield />} delay={600}>
-            {topCwe && topCwe.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topCwe} barSize={24}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="cwe_id" tick={{ fill: '#94A3B8', fontSize: 10 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} angle={-30} textAnchor="end" height={60} />
-                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="count" name="Occurrences" radius={[4, 4, 0, 0]} animationDuration={1000}>
-                    {topCwe.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-      </Grid>
-
-      {/* ═══════ ROW 4 — Top CVE + Affected Assets ═══════ */}
-      <Grid container spacing={2.5} sx={{ mb: 2.5 }}>
-        {/* Top CVE IDs */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Top CVE IDs" icon={<GppBad />} delay={650}>
-            {topCve && topCve.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topCve} barSize={24}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="cve_id" tick={{ fill: '#94A3B8', fontSize: 9 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} angle={-35} textAnchor="end" height={70} />
-                  <YAxis tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="count" name="Occurrences" radius={[4, 4, 0, 0]} animationDuration={1000}>
-                    {topCve.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[(idx + 5) % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-
-        {/* Most Affected Assets */}
-        <Grid item xs={12} md={6}>
-          <ChartCard title="Most Affected Assets" icon={<Storage />} delay={700}>
-            {assets && assets.length > 0 ? (
-              <ResponsiveContainer width="100%" height={Math.max(300, assets.length * 32)}>
-                <BarChart data={assets} layout="vertical" barSize={16} margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                  <XAxis type="number" tick={{ fill: '#94A3B8', fontSize: 11 }} axisLine={{ stroke: 'rgba(255,255,255,0.08)' }} allowDecimals={false} />
-                  <YAxis
-                    dataKey="asset"
-                    type="category"
-                    width={180}
-                    tick={{ fill: '#94A3B8', fontSize: 10 }}
-                    axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-                    tickFormatter={(val) => (val.length > 25 ? `${val.substring(0, 25)}…` : val)}
-                  />
-                  <Tooltip content={<GlassTooltip />} />
-                  <Bar dataKey="count" name="Vulnerabilities" radius={[0, 4, 4, 0]} animationDuration={1000}>
-                    {assets.map((_, idx) => (
-                      <Cell key={idx} fill={CHART_COLORS[(idx + 3) % CHART_COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-      </Grid>
-
-      {/* ═══════ ROW 5 — New vs Repeat + Recent Vulns ═══════ */}
-      <Grid container spacing={2.5} sx={{ mb: 2 }}>
-        {/* New vs Repeat */}
-        <Grid item xs={12} md={4}>
-          <ChartCard title="New vs Repeat Findings" icon={<Repeat />} delay={750}>
-            {newRepeat && newRepeat.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={newRepeat}
-                    dataKey="count"
-                    nameKey="type"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={95}
-                    paddingAngle={4}
-                    labelLine={false}
-                    label={renderDonutLabel}
-                    animationDuration={1000}
-                  >
-                    {newRepeat.map((_, idx) => (
-                      <Cell key={idx} fill={idx === 0 ? '#00D4FF' : '#FF9100'} stroke="none" />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<GlassTooltip />} />
-                  <Legend
-                    verticalAlign="bottom"
-                    iconType="circle"
-                    iconSize={8}
-                    formatter={(val) => <span style={{ color: '#94A3B8', fontSize: 12 }}>{val}</span>}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyState />
-            )}
-          </ChartCard>
-        </Grid>
-
-        {/* Vulnerabilities DataGrid */}
-        <Grid item xs={12} md={8}>
-          <ChartCard 
-            title={`Vulnerabilities ${chartFilter.value ? `(Filtered by ${chartFilter.value})` : ''}`} 
-            icon={<BugReport />} 
-            delay={800}
-            sx={{
-              '& .MuiDataGrid-root': {
-                border: 'none',
-                color: 'text.primary',
-              },
-              '& .MuiDataGrid-cell': {
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
-                display: 'flex',
-                alignItems: 'center',
-              },
-              '& .MuiDataGrid-columnHeaders': {
-                borderBottom: '1px solid rgba(255,255,255,0.1)',
-                backgroundColor: 'rgba(17, 24, 39, 0.4)',
-              },
-              '& .MuiDataGrid-footerContainer': {
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-              },
-              '& .MuiTablePagination-root': {
-                color: 'text.secondary',
-              },
-              '& .MuiDataGrid-iconSeparator': {
-                display: 'none',
-              },
-            }}
-          >
-            {tableVulns && tableVulns.length > 0 ? (
-              <Box sx={{ height: 350, width: '100%' }}>
-                <DataGrid
-                  rows={tableVulns}
-                  columns={columns}
-                  pageSizeOptions={[5, 10, 25]}
-                  initialState={{
-                    pagination: { paginationModel: { pageSize: 5 } },
-                  }}
-                  disableRowSelectionOnClick
-                />
-              </Box>
-            ) : (
-              <EmptyState message="No vulnerabilities match the current filters" />
-            )}
-          </ChartCard>
-        </Grid>
-      </Grid>
+      {/* Expand Dialog */}
+      <Dialog 
+        open={Boolean(expandedWidget)} 
+        onClose={() => setExpandedWidget(null)} 
+        maxWidth="lg" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: '#0B1120',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backgroundImage: 'none',
+            height: '80vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', p: 2 }}>
+          <Typography variant="h6" fontWeight={700}>Expanded View</Typography>
+          <IconButton onClick={() => setExpandedWidget(null)} sx={{ color: 'text.secondary' }}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, flex: 1, minHeight: 0 }}>
+          {expandedWidget === 'severity' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={severityDist} dataKey="count" nameKey="severity" cx="50%" cy="50%" innerRadius="40%" outerRadius="70%" paddingAngle={3} labelLine={false} label={renderDonutLabel}>
+                  {severityDist?.map((entry) => <Cell key={entry.severity} fill={SEVERITY_COLORS[entry.severity] || '#94A3B8'} stroke="none" />)}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+                <Legend verticalAlign="bottom" />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'status' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={statusDist} dataKey="count" nameKey="status" cx="50%" cy="50%" innerRadius="40%" outerRadius="70%" paddingAngle={3} labelLine={false} label={renderDonutLabel}>
+                  {statusDist?.map((entry) => <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || '#94A3B8'} stroke="none" />)}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+                <Legend verticalAlign="bottom" />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'cvss' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={cvssDist} barSize={40}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="range" tick={{ fill: '#94A3B8' }} />
+                <YAxis tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="count" fill="#00D4FF" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'trend' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="month" tick={{ fill: '#94A3B8' }} />
+                <YAxis tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Area type="monotone" dataKey="count" stroke="#00D4FF" fill="#00D4FF" fillOpacity={0.3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'category' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={categories} layout="vertical" margin={{ left: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis type="number" tick={{ fill: '#94A3B8' }} />
+                <YAxis dataKey="category" type="category" tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="count" fill="#FF9100" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'cwe' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topCwe} margin={{ bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="cwe_id" tick={{ fill: '#94A3B8' }} angle={-45} textAnchor="end" />
+                <YAxis tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="count" fill="#7C4DFF" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'cve' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topCve} margin={{ bottom: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="cve_id" tick={{ fill: '#94A3B8' }} angle={-45} textAnchor="end" />
+                <YAxis tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="count" fill="#FF1744" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'asset' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={assets} layout="vertical" margin={{ left: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis type="number" tick={{ fill: '#94A3B8' }} />
+                <YAxis dataKey="asset" type="category" tick={{ fill: '#94A3B8' }} />
+                <Tooltip content={<GlassTooltip />} />
+                <Bar dataKey="count" fill="#00E676" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'newrepeat' && (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={newRepeat} dataKey="count" nameKey="type" cx="50%" cy="50%" innerRadius="40%" outerRadius="70%">
+                  {newRepeat?.map((_, idx) => <Cell key={idx} fill={idx === 0 ? '#00D4FF' : '#FF9100'} />)}
+                </Pie>
+                <Tooltip content={<GlassTooltip />} />
+                <Legend verticalAlign="bottom" />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+          {expandedWidget === 'table' && (
+            <Box sx={{ height: '100%', width: '100%', 
+              '& .MuiDataGrid-root': { border: 'none', color: 'text.primary' },
+              '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(255,255,255,0.05)' },
+              '& .MuiDataGrid-columnHeaders': { backgroundColor: 'rgba(17, 24, 39, 0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' },
+            }}>
+              <DataGrid rows={tableVulns || []} columns={columns} pageSizeOptions={[10, 25, 50]} />
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
 
     </Box>
   );

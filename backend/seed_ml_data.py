@@ -20,7 +20,7 @@ async def seed_data():
 
         # Create Agencies
         agencies = []
-        for i in range(1, 15):
+        for i in range(1, 51):
             agency = Agency(
                 agency_id=uuid.uuid4(),
                 agency_code=f"AG-SEED-{i:03d}-{random.randint(1000,9999)}",
@@ -33,11 +33,14 @@ async def seed_data():
             agencies.append(agency)
         await db.commit()
         
-        # We need historical data for forecasting (at least 6-8 months)
+        # We need historical data for forecasting (at least 12 months)
         now = datetime.now(timezone.utc)
         
-        for i in range(80): # 80 reports over the last 8 months
-            days_ago = random.randint(1, 240)
+        for i in range(5000): # 5000 reports with a spike in recent months
+            if random.random() < 0.5:
+                days_ago = random.randint(1, 60) # Spike in the last 60 days
+            else:
+                days_ago = random.randint(61, 365)
             report_time = now - timedelta(days=days_ago)
             agency = random.choice(agencies)
             
@@ -64,10 +67,14 @@ async def seed_data():
             )
             db.add(rd)
             
-            # Generate 1 to 5 vulnerabilities per report
-            num_vulns = random.randint(1, 5)
+            # Generate 5 to 25 vulnerabilities per report
+            num_vulns = random.randint(5, 25)
             for v_idx in range(num_vulns):
-                cvss = round(random.uniform(2.0, 10.0), 1)
+                # 40% chance of critical/high score
+                if random.random() < 0.4:
+                    cvss = round(random.uniform(7.0, 10.0), 1)
+                else:
+                    cvss = round(random.uniform(2.0, 6.9), 1)
                 
                 if cvss >= 9.0:
                     sev = SeverityLevel.CRITICAL
