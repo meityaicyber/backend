@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  Box,
+  Box, Backdrop, CircularProgress,
   Card,
   CardContent,
   Grid,
@@ -432,38 +433,36 @@ export default function AnalyticsDashboardPage() {
     document.body.removeChild(link);
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
-          api.get('/api/agencies?limit=100'),
-          api.get('/api/reports?limit=100'),
-          api.get('/api/analytics/vulnerabilities-raw')
-        ]);
-        
-        const fetchedAgencies = agenciesRes.data.agencies.map(a => ({
-          id: a.agency_id,
-          name: a.agency_name
-        }));
-        setAgencies(fetchedAgencies);
-
-        const fetchedFiles = reportsRes.data.reports.map(r => ({
+    const { data, isFetching } = useQuery({
+    queryKey: ['analyticsRawData'],
+    queryFn: async () => {
+      const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
+        api.get('/api/agencies?limit=100'),
+        api.get('/api/reports?limit=100'),
+        api.get('/api/analytics/vulnerabilities-raw')
+      ]);
+      return {
+        agencies: agenciesRes.data.agencies.map(a => ({ id: a.agency_id, name: a.agency_name })),
+        reports: reportsRes.data.reports.map(r => ({
           id: r.report_id,
           name: r.original_filename,
           date: r.created_at,
           agencyId: r.agency ? r.agency.agency_id : null,
-        }));
-        setFiles(fetchedFiles);
-        setAllVulns(vulnsRes.data || []);
-      } catch (err) {
-        console.error("Error fetching dashboard data", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+        })),
+        vulns: vulnsRes.data || []
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (data) {
+      setAgencies(data.agencies);
+      setFiles(data.reports);
+      setAllVulns(data.vulns);
+      setLoading(false);
+    }
+  }, [data]);
 
   useEffect(() => {
     setSelectedFileId('');
@@ -498,7 +497,7 @@ export default function AnalyticsDashboardPage() {
     }
 
     return vulns;
-  }, [viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses]);
+  }, [allVulns, viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses]);
 
   const aggregatedData = useMemo(() => {
     const total = filteredVulnerabilities.length;
@@ -585,7 +584,7 @@ export default function AnalyticsDashboardPage() {
       assets,
       newRepeat
     };
-  }, [filteredVulnerabilities, viewMode, selectedAgencyId, selectedFileId]);
+  }, [filteredVulnerabilities, viewMode, selectedAgencyId, selectedFileId, files]);
 
   const { summary, severityDist, statusDist, cvssDist, trend, categories, topCwe, topCve, assets, newRepeat } = aggregatedData;
 
@@ -625,7 +624,11 @@ export default function AnalyticsDashboardPage() {
     
   
   return (
-      <Box>
+    <Box>
+      <Backdrop open={isFetching} sx={{ color: '#00D4FF', zIndex: 9999, flexDirection: 'column', gap: 2, background: 'rgba(10,14,23,0.8)' }}>
+        <CircularProgress color='inherit' />
+        <Typography variant='h6' fontWeight={600}>Fetching Live Data...</Typography>
+      </Backdrop>
         <Skeleton variant="text" width={260} height={42} sx={{ mb: 1 }} />
         <Skeleton variant="text" width={380} height={24} sx={{ mb: 3 }} />
         <Grid container spacing={2.5} sx={{ mb: 3 }}>

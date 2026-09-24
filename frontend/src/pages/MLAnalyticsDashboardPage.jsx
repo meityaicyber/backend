@@ -1,6 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
 import {
-  Box, Card, CardContent, Grid, Typography, Table, TableBody,
+  Box, Backdrop, CircularProgress, Card, CardContent, Grid, Typography, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert,
   IconButton, Dialog, DialogTitle, DialogContent
 } from '@mui/material';
@@ -116,29 +117,34 @@ export default function MLAnalyticsDashboardPage() {
     }
   };
 
+    const { data, isFetching } = useQuery({
+    queryKey: ['mlAnalyticsData'],
+    queryFn: async () => {
+      const [fRes, cRes, aRes, pRes] = await Promise.allSettled([
+        api.get('/api/ml/forecast?months=6'),
+        api.get('/api/ml/clusters'),
+        api.get('/api/ml/anomalies'),
+        api.get('/api/ml/prioritize')
+      ]);
+      return {
+        forecast: fRes.status === 'fulfilled' ? fRes.value.data : null,
+        clusters: cRes.status === 'fulfilled' ? cRes.value.data : null,
+        anomalies: aRes.status === 'fulfilled' ? aRes.value.data : null,
+        prioritize: pRes.status === 'fulfilled' ? pRes.value.data : null
+      };
+    },
+    staleTime: 5 * 60 * 1000
+  });
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [fRes, cRes, aRes, pRes] = await Promise.allSettled([
-          api.get('/api/ml/forecast?months=6'),
-          api.get('/api/ml/clusters'),
-          api.get('/api/ml/anomalies'),
-          api.get('/api/ml/prioritize')
-        ]);
-        
-        if (fRes.status === 'fulfilled') setForecast(fRes.value.data);
-        if (cRes.status === 'fulfilled') setClusters(cRes.value.data);
-        if (aRes.status === 'fulfilled') setAnomalies(aRes.value.data);
-        if (pRes.status === 'fulfilled') setPrioritize(pRes.value.data);
-      } catch (err) {
-        setError('Failed to fetch ML analytics');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    if (data) {
+      if (data.forecast) setForecast(data.forecast);
+      if (data.clusters) setClusters(data.clusters);
+      if (data.anomalies) setAnomalies(data.anomalies);
+      if (data.prioritize) setPrioritize(data.prioritize);
+      setLoading(false);
+    }
+  }, [data]);
 
   if (loading) {
     return (
