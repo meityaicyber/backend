@@ -421,7 +421,7 @@ export default function AnalyticsDashboardPage() {
       escapeCsv(v.new_or_repeat)
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('  const aggregatedData = data?.aggregates || {};n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     
@@ -432,15 +432,24 @@ export default function AnalyticsDashboardPage() {
     link.click();
     document.body.removeChild(link);
   };
-
-    const { data, isFetching } = useQuery({
-    queryKey: ['analyticsRawData'],
+  const { data, isFetching } = useQuery({
+    queryKey: ['analyticsData', viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses],
     queryFn: async () => {
-      const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
+      let queryParams = new URLSearchParams();
+      if (viewMode === 'AGENCY' && selectedAgencyId) queryParams.append('agency_id', selectedAgencyId);
+      if (viewMode === 'FILE' && selectedFileId) queryParams.append('report_id', selectedFileId);
+      if (timeRange && timeRange !== 'ALL') queryParams.append('time_range', timeRange);
+      selectedSeverities.forEach(s => queryParams.append('severities', s));
+      selectedStatuses.forEach(s => queryParams.append('statuses', s));
+      const qs = queryParams.toString() ? '?' + queryParams.toString() : '';
+
+      const [agenciesRes, reportsRes, aggRes, vulnsRes] = await Promise.all([
         api.get('/api/agencies?limit=100'),
         api.get('/api/reports?limit=100'),
-        api.get('/api/analytics/vulnerabilities-raw')
+        api.get('/api/analytics/dashboard-aggregates' + qs),
+        api.get('/api/analytics/vulnerabilities-raw' + qs + (qs ? '&' : '?') + 'page=1&limit=100')
       ]);
+      
       return {
         agencies: agenciesRes.data.agencies.map(a => ({ id: a.agency_id, name: a.agency_name })),
         reports: reportsRes.data.reports.map(r => ({
@@ -449,7 +458,8 @@ export default function AnalyticsDashboardPage() {
           date: r.created_at,
           agencyId: r.agency ? r.agency.agency_id : null,
         })),
-        vulns: vulnsRes.data || []
+        aggregates: aggRes.data,
+        tableVulns: vulnsRes.data.data
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -459,7 +469,6 @@ export default function AnalyticsDashboardPage() {
     if (data) {
       setAgencies(data.agencies);
       setFiles(data.reports);
-      setAllVulns(data.vulns);
       setLoading(false);
     }
   }, [data]);
@@ -467,136 +476,18 @@ export default function AnalyticsDashboardPage() {
   useEffect(() => {
     setSelectedFileId('');
   }, [selectedAgencyId]);
-
-  const filteredVulnerabilities = useMemo(() => {
-    let vulns = [];
-    if (viewMode === 'GLOBAL') {
-      vulns = allVulns;
-    } else if (viewMode === 'AGENCY') {
-      vulns = allVulns.filter(v => v.agencyId === selectedAgencyId);
-    } else if (viewMode === 'FILE') {
-      vulns = allVulns.filter(v => v.reportId === selectedFileId);
-    }
-
-    const now = new Date();
-    if (timeRange !== 'ALL') {
-      const msPerDay = 1000 * 60 * 60 * 24;
-      let days = 0;
-      if (timeRange === '30_DAYS') days = 30;
-      else if (timeRange === '6_MONTHS') days = 180;
-      else if (timeRange === '1_YEAR') days = 365;
-      const thresholdDate = new Date(now.getTime() - days * msPerDay);
-      vulns = vulns.filter(v => new Date(v.date) >= thresholdDate);
-    }
-
-    if (selectedSeverities.length > 0) {
-      vulns = vulns.filter(v => selectedSeverities.includes(v.severity));
-    }
-    if (selectedStatuses.length > 0) {
-      vulns = vulns.filter(v => selectedStatuses.includes(v.status));
-    }
-
-    return vulns;
-  }, [allVulns, viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses]);
-
-  const aggregatedData = useMemo(() => {
-    const total = filteredVulnerabilities.length;
-    let openCount = 0;
-    let closedCount = 0;
-    let critCount = 0;
-    let cvssSum = 0;
-    
-    const sevCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFORMATIONAL: 0 };
-    const statCounts = { OPEN: 0, CLOSED: 0, ACCEPTED: 0, RISK_ACCEPTED: 0, IN_PROGRESS: 0 };
-    const cvssRanges = Array.from({ length: 10 }, (_, i) => ({ range: `${i}.0-${i + 1}.0`, count: 0 }));
-    const countsByMonth = {};
-    const catCounts = {};
-    const cweCounts = {};
-    const cveCounts = {};
-    const assetCounts = {};
-    const nrCounts = { NEW: 0, REPEAT: 0 };
-    
-    let reportsSet = new Set();
-    if (viewMode === 'GLOBAL') {
-      reportsSet = new Set(files.map(f => f.id));
-    } else if (viewMode === 'AGENCY') {
-      reportsSet = new Set(files.filter(f => f.agencyId === selectedAgencyId).map(f => f.id));
-    } else if (viewMode === 'FILE') {
-      if (selectedFileId) reportsSet.add(selectedFileId);
-    }
-
-    filteredVulnerabilities.forEach(v => {
-      if (['OPEN', 'IN_PROGRESS'].includes(v.status)) openCount++;
-      if (['CLOSED', 'ACCEPTED', 'RISK_ACCEPTED'].includes(v.status)) closedCount++;
-      if (v.severity === 'CRITICAL') critCount++;
-      cvssSum += (v.cvss || 0);
-
-      if (sevCounts[v.severity] !== undefined) sevCounts[v.severity]++;
-      if (statCounts[v.status] !== undefined) statCounts[v.status]++;
-      
-      const cvssIdx = Math.min(Math.floor(v.cvss || 0), 9);
-      cvssRanges[cvssIdx].count++;
-
-      const d = new Date(v.date);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      countsByMonth[monthStr] = (countsByMonth[monthStr] || 0) + 1;
-
-      catCounts[v.category] = (catCounts[v.category] || 0) + 1;
-      cweCounts[v.cwe] = (cweCounts[v.cwe] || 0) + 1;
-      cveCounts[v.cve] = (cveCounts[v.cve] || 0) + 1;
-      assetCounts[v.asset] = (assetCounts[v.asset] || 0) + 1;
-
-      if (nrCounts[v.new_or_repeat] !== undefined) nrCounts[v.new_or_repeat]++;
-    });
-
-    const avgCvss = total > 0 ? (cvssSum / total).toFixed(1) : 0;
-    const summary = {
-      total_vulnerabilities: total,
-      open_vulnerabilities: openCount,
-      closed_vulnerabilities: closedCount,
-      critical_count: critCount,
-      avg_cvss_score: avgCvss,
-      reports_with_vulns: reportsSet.size
-    };
-
-    const severityDist = Object.entries(sevCounts).map(([severity, count]) => ({ severity, count })).filter(d => d.count > 0);
-    const statusDist = Object.entries(statCounts).map(([status, count]) => ({ status, count })).filter(d => d.count > 0);
-    const trend = Object.entries(countsByMonth).sort((a, b) => a[0].localeCompare(b[0])).map(([month, count]) => ({ month, count })).slice(-12);
-    
-    const sortByCount = (obj) => Object.entries(obj).map(([k, count]) => ({ key: k, count })).sort((a, b) => b.count - a.count).slice(0, 5);
-    
-    const categories = sortByCount(catCounts).map(d => ({ category: d.key, count: d.count }));
-    const topCwe = sortByCount(cweCounts).map(d => ({ cwe_id: d.key, count: d.count }));
-    const topCve = sortByCount(cveCounts).map(d => ({ cve_id: d.key, count: d.count }));
-    const assets = sortByCount(assetCounts).map(d => ({ asset: d.key, count: d.count }));
-    
-    const newRepeat = Object.entries(nrCounts).map(([type, count]) => ({ type, count })).filter(d => d.count > 0);
-
-    return {
-      summary,
-      severityDist,
-      statusDist,
-      cvssDist: cvssRanges,
-      trend,
-      categories,
-      topCwe,
-      topCve,
-      assets,
-      newRepeat
-    };
-  }, [filteredVulnerabilities, viewMode, selectedAgencyId, selectedFileId, files]);
-
-  const { summary, severityDist, statusDist, cvssDist, trend, categories, topCwe, topCve, assets, newRepeat } = aggregatedData;
-
-  const tableVulns = useMemo(() => {
-    let vulns = [...filteredVulnerabilities];
+  const aggregatedData = data?.aggregates || {};
+  const { summary = {}, severityDist, statusDist, cvssDist, trend, categories, topCwe, topCve, assets, newRepeat } = aggregatedData;
+  const rawTableVulns = data?.tableVulns || [];
+  
+  const tableVulns = React.useMemo(() => {
+    let vulns = [...rawTableVulns];
     if (chartFilter.key && chartFilter.value) {
       vulns = vulns.filter(v => v[chartFilter.key] === chartFilter.value);
     }
-    return vulns.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [filteredVulnerabilities, chartFilter]);
-
-  const columns = [
+    return vulns;
+  }, [rawTableVulns, chartFilter]);
+const columns = [
     { field: 'title', headerName: 'Title', flex: 1, minWidth: 200, renderCell: (params) => (
       <Typography variant="body2" fontWeight={500} noWrap sx={{ fontSize: '0.8rem' }}>
         {params.value}

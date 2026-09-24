@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -168,17 +168,47 @@ async def get_recent_vulns(
 async def get_all_vulnerabilities_raw(
     agency_id: Optional[UUID] = None,
     report_id: Optional[UUID] = None,
+    time_range: Optional[str] = Query('ALL'),
+    severities: list[str] = Query(None),
+    statuses: list[str] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=1000),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import select
-    from app.models.report import Vulnerability, Report
+    from sqlalchemy import select, func
+    from app.models.report import Vulnerability, Report, SeverityLevel, VulnStatus
+    from datetime import datetime, timedelta, timezone
 
     query = select(Vulnerability, Report.agency_id).join(Report, Vulnerability.report_id == Report.report_id)
+    
     if report_id:
         query = query.where(Vulnerability.report_id == report_id)
     if agency_id:
         query = query.where(Report.agency_id == agency_id)
+        
+    if time_range and time_range != 'ALL':
+        days = 0
+        if time_range == '30_DAYS': days = 30
+        elif time_range == '6_MONTHS': days = 180
+        elif time_range == '1_YEAR': days = 365
+        if days > 0:
+            threshold = datetime.now(timezone.utc) - timedelta(days=days)
+            query = query.where(Vulnerability.created_at >= threshold)
+            
+    if severities:
+        query = query.where(Vulnerability.severity.in_([SeverityLevel(s) for s in severities]))
+        
+    if statuses:
+        query = query.where(Vulnerability.status.in_([VulnStatus(s) for s in statuses]))
+        
+    # Get total count for pagination
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+        
+    # Apply pagination and sorting
+    query = query.order_by(Vulnerability.created_at.desc()).offset((page - 1) * limit).limit(limit)
         
     result = await db.execute(query)
     rows = result.all()
@@ -200,4 +230,45 @@ async def get_all_vulnerabilities_raw(
             "reportId": str(vuln.report_id),
             "agencyId": str(ag_id) if ag_id else None
         })
-    return data
+    return {"count": total, "page": page, "limit": limit, "data": data}
+
+
+import asyncio
+
+@router.get("/dashboard-aggregates")
+async def get_dashboard_aggregates(
+    agency_id: Optional[UUID] = None,
+    report_id: Optional[UUID] = None,
+    time_range: Optional[str] = Query('ALL'),
+    severities: list[str] = Query(None),
+    statuses: list[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch all dashboard analytics in a single highly-optimized payload."""
+    results = await asyncio.gather(
+        analytics_service.get_summary(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_severity_distribution(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_status_distribution(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_cvss_distribution(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_trend(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_category_breakdown(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_top_cwe(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_top_cve(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_affected_assets(db, agency_id, report_id, time_range, severities, statuses),
+        analytics_service.get_new_vs_repeat(db, agency_id, report_id, time_range, severities, statuses)
+    )
+
+    return {
+        "summary": results[0],
+        "severityDist": results[1],
+        "statusDist": results[2],
+        "cvssDist": results[3],
+        "trend": results[4],
+        "categories": results[5],
+        "topCwe": results[6],
+        "topCve": results[7],
+        "assets": results[8],
+        "newRepeat": results[9]
+    }
+
