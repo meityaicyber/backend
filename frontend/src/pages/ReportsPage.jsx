@@ -832,7 +832,7 @@ function ReportsPage() {
       );
     }
 
-    if (status === 'completed') {
+    if (status === 'completed' || report.has_pipeline_data) {
       return (
         <Chip
           icon={<CheckCircle sx={{ fontSize: 14 }} />}
@@ -1099,7 +1099,7 @@ function ReportsPage() {
       />
 
       <Card className="fade-in-up" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <CardContent sx={{ p: 0, flexGrow: 1, height: 600 }}>
+        <CardContent sx={{ p: 0, flexGrow: 1, height: 600, display: 'flex', flexDirection: 'column' }}>
           <DataGrid
             rows={reports}
             columns={columns}

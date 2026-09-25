@@ -38,8 +38,15 @@ def calculate_simhash(file_bytes: bytes, extension: str) -> Optional[str]:
     text = extract_text_from_bytes(file_bytes, extension)
     if not text:
         return None
-    # simhash module automatically tokenizes strings into words if passed a string
-    return str(Simhash(text).value)
+    try:
+        # simhash module automatically tokenizes strings into words if passed a string
+        return str(Simhash(text).value)
+    except (OverflowError, ValueError, TypeError) as e:
+        # The simhash/numpy internals can overflow (e.g. "Python integer 277 out of bounds for uint8")
+        # for certain text content. Gracefully skip SimHash — the upload still proceeds without
+        # partial duplicate detection for this file.
+        print(f"SimHash calculation failed (skipping): {e}")
+        return None
 
 
 def is_partial_duplicate(new_hash_str: str, existing_hash_str: str, threshold: int = 3) -> bool:

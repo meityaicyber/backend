@@ -75,7 +75,27 @@ export const BulkUploadProvider = ({ children }) => {
         
         updateFileStatus(fileData.id, 'Success', 'File saved and pipeline completed.');
       } catch (err) {
-        const msg = err.response?.data?.detail || err.message || 'Operation Failed';
+        let msg = 'Operation failed';
+        if (err.response) {
+          if (err.response.data && typeof err.response.data.detail === 'string') {
+            msg = err.response.data.detail;
+          } else if (err.response.data && Array.isArray(err.response.data.detail)) {
+            msg = err.response.data.detail.map(d => d.msg || JSON.stringify(d)).join(', ');
+          } else if (err.response.status === 413) {
+            msg = "File size limit exceeded";
+          } else if (err.response.status === 500) {
+             // If there's a specific message in the response text, try to use it
+             if (typeof err.response.data === 'string' && err.response.data.length < 200 && !err.response.data.includes('<html')) {
+                msg = err.response.data;
+             } else {
+                msg = "Internal server error on backend";
+             }
+          } else {
+            msg = `Request failed with status code ${err.response.status}`;
+          }
+        } else {
+          msg = err.message || 'Network error';
+        }
         
         if (reportId) {
           updateFileStatus(fileData.id, 'Failed', `${msg} (Rolling back...)`);

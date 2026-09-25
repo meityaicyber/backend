@@ -66,6 +66,11 @@ async def upload_report(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload processing failed: {str(e)}"
+        )
 
 
 @router.get("", response_model=ReportListOut)

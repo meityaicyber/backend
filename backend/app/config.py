@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # File Storage
     STORAGE_PATH: str = "/storage/reports"
     ALLOWED_EXTENSIONS: List[str] = [".pdf", ".docx", ".txt"]
-    MAX_FILE_SIZE_MB: int = 50
+    MAX_FILE_SIZE_MB: int = 500
 
     # SeaweedFS Storage
     SEAWEEDFS_FILER_URL: str = "http://localhost:8888"

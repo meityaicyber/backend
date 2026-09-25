@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
-  Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+  Box, Card, CardContent, Typography, LinearProgress, Alert, Chip, Paper, Button, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, FormControl, InputLabel, Select, MenuItem, Tabs, Tab, RadioGroup, FormControlLabel, Radio, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, CircularProgress, Backdrop
 } from '@mui/material';
 import {
   CloudUpload, CheckCircle, Error as ErrorIcon, Description, Lock as LockIcon, PlayArrow, Folder, TableChart, Autorenew, Pending, Cancel, Download
@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx';
 import { useBulkUpload } from '../contexts/BulkUploadContext';
 
 function UploadReportPage() {
+  // Cache buster: v4-folder-loading
   const { enqueueSnackbar } = useSnackbar();
   
   // Shared state
@@ -40,6 +41,7 @@ function UploadReportPage() {
   } = useBulkUpload();
   const [generatingExcel, setGeneratingExcel] = useState(false);
   const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
+  const [folderLoading, setFolderLoading] = useState(false);
 
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -78,7 +80,22 @@ function UploadReportPage() {
           await api.post(`/api/reports/${reportId}/run-pipeline`);
           enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
         } catch (err) {
-          const msg = err.response?.data?.detail || 'Operation failed';
+          let msg = 'Operation failed';
+          if (err.response) {
+            if (err.response.data && typeof err.response.data.detail === 'string') {
+              msg = err.response.data.detail;
+            } else if (err.response.data && Array.isArray(err.response.data.detail)) {
+              msg = err.response.data.detail.map(d => d.msg).join(', ');
+            } else if (err.response.status === 413) {
+              msg = "File size limit exceeded";
+            } else if (err.response.status === 500) {
+              msg = "Internal server error on backend";
+            } else {
+              msg = `Request failed with status code ${err.response.status}`;
+            }
+          } else {
+            msg = err.message || 'Network error';
+          }
           if (msg === 'PASSWORD_REQUIRED') {
             throw err; // Let outer catch handle password required
           }
@@ -97,7 +114,22 @@ function UploadReportPage() {
           }
         }
       } catch (err) {
-        const msg = err.response?.data?.detail;
+        let msg = 'Operation failed';
+          if (err.response) {
+            if (err.response.data && typeof err.response.data.detail === 'string') {
+              msg = err.response.data.detail;
+            } else if (err.response.data && Array.isArray(err.response.data.detail)) {
+              msg = err.response.data.detail.map(d => d.msg).join(', ');
+            } else if (err.response.status === 413) {
+              msg = "File size limit exceeded";
+            } else if (err.response.status === 500) {
+              msg = "Internal server error on backend";
+            } else {
+              msg = `Request failed with status code ${err.response.status}`;
+            }
+          } else {
+            msg = err.message || 'Network error';
+          }
         if (msg === 'PASSWORD_REQUIRED') {
           setPasswordRequired(true); setPendingFile(file);
         } else {
@@ -133,7 +165,22 @@ function UploadReportPage() {
         await api.post(`/api/reports/${reportId}/run-pipeline`);
         enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
       } catch (err) {
-        const msg = err.response?.data?.detail || 'Operation failed';
+        let msg = 'Operation failed';
+          if (err.response) {
+            if (err.response.data && typeof err.response.data.detail === 'string') {
+              msg = err.response.data.detail;
+            } else if (err.response.data && Array.isArray(err.response.data.detail)) {
+              msg = err.response.data.detail.map(d => d.msg).join(', ');
+            } else if (err.response.status === 413) {
+              msg = "File size limit exceeded";
+            } else if (err.response.status === 500) {
+              msg = "Internal server error on backend";
+            } else {
+              msg = `Request failed with status code ${err.response.status}`;
+            }
+          } else {
+            msg = err.message || 'Network error';
+          }
         if (msg === 'INVALID_PASSWORD') {
           throw err;
         }
@@ -153,7 +200,22 @@ function UploadReportPage() {
         }
       }
     } catch (err) {
-      const msg = err.response?.data?.detail;
+      let msg = 'Operation failed';
+          if (err.response) {
+            if (err.response.data && typeof err.response.data.detail === 'string') {
+              msg = err.response.data.detail;
+            } else if (err.response.data && Array.isArray(err.response.data.detail)) {
+              msg = err.response.data.detail.map(d => d.msg).join(', ');
+            } else if (err.response.status === 413) {
+              msg = "File size limit exceeded";
+            } else if (err.response.status === 500) {
+              msg = "Internal server error on backend";
+            } else {
+              msg = `Request failed with status code ${err.response.status}`;
+            }
+          } else {
+            msg = err.message || 'Network error';
+          }
       if (msg === 'INVALID_PASSWORD') {
         setError('Incorrect password. Please try again.');
       } else {
@@ -172,33 +234,53 @@ function UploadReportPage() {
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
     onDrop, accept: { 'application/pdf': ['.pdf'], 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] },
-    maxFiles: 1, maxSize: 50 * 1024 * 1024, disabled: uploading,
+    maxFiles: 1, maxSize: 500 * 1024 * 1024, disabled: uploading,
   });
 
   const handleReset = () => { setResult(null); setError(''); setProgress(0); };
 
-  // BULK UPLOAD
   const handleFolderSelect = (e) => {
-    if (e.target.files) {
-      const filesArray = Array.from(e.target.files).filter(f => {
-        const lowerName = f.name.toLowerCase();
-        return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
-      });
-      setPdfFiles(filesArray);
+    if (e.target.files && e.target.files.length > 0) {
+      setFolderLoading(true);
       
-      // Initialize table data
-      const initialData = filesArray.map((f, i) => {
-        const cleanName = (f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
-        return {
-          id: i,
-          file: f,
-          name: cleanName,
-          status: 'Pending',
-          details: '-'
-        };
-      });
-      setBulkFilesData(initialData);
-      setBulkFinished(false);
+      // Store a reference to the files object so we can read it asynchronously
+      const filesObj = e.target.files;
+      const targetInput = e.target;
+      
+      // Give the browser 150ms to paint the loading UI before we freeze it with processing
+      setTimeout(() => {
+        // Converting a large FileList to an array is very CPU intensive
+        const rawFiles = Array.from(filesObj);
+        
+        const filesArray = rawFiles.filter(f => {
+          const lowerName = f.name.toLowerCase();
+          return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
+        });
+        
+        setPdfFiles(filesArray);
+        
+        // Initialize table data
+        const initialData = filesArray.map((f, i) => {
+          const cleanName = (f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
+          return {
+            id: i,
+            file: f,
+            name: cleanName,
+            status: 'Pending',
+            details: '-'
+          };
+        });
+        
+        setBulkFilesData(initialData);
+        setBulkFinished(false);
+        setFolderLoading(false);
+        
+        // Clear input after processing so same folder can be selected again
+        targetInput.value = null;
+      }, 150); 
+    } else {
+      setFolderLoading(false);
+      e.target.value = null;
     }
   };
 
@@ -420,7 +502,7 @@ function UploadReportPage() {
               <input {...getInputProps()} />
               <CloudUpload sx={{ fontSize: 64, color: isDragActive ? '#00D4FF' : 'text.secondary', mb: 2, filter: isDragActive ? 'drop-shadow(0 0 12px rgba(0,212,255,0.5))' : 'none' }} />
               <Typography variant="h6" fontWeight={600} sx={{ mb: 1 }}>{isDragActive ? 'Drop the file here' : 'Drag & drop a file here, or click to browse'}</Typography>
-              <Typography variant="body2" color="text.secondary">Supported formats: PDF, DOCX — Max size: 50MB</Typography>
+              <Typography variant="body2" color="text.secondary">Supported formats: PDF, DOCX — Max size: 500MB</Typography>
             </Paper>
 
             {uploading && (
@@ -508,11 +590,24 @@ function UploadReportPage() {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Select the folder containing the bulk PDF/Word reports.
                 </Typography>
-                <Button variant="outlined" component="label" startIcon={<Folder />}>
-                  Select Folder
-                  <input type="file" webkitdirectory="true" directory="true" multiple hidden onChange={handleFolderSelect} disabled={bulkRunning} />
+                <Button variant="outlined" component="label" startIcon={folderLoading ? <CircularProgress size={18} color="inherit" /> : <Folder />} disabled={bulkRunning || folderLoading}>
+                  {folderLoading ? 'Reading Files...' : 'Select Folder'}
+                  <input type="file" webkitdirectory="true" directory="true" multiple hidden onChange={handleFolderSelect} disabled={bulkRunning || folderLoading} />
                 </Button>
-                {pdfFiles.length > 0 && (
+                {folderLoading && (
+                  <Paper elevation={0} sx={{ mt: 2, p: 3, borderRadius: 2, background: 'rgba(0, 212, 255, 0.05)', border: '1px solid rgba(0, 212, 255, 0.15)', display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress size={28} sx={{ color: '#00D4FF' }} />
+                    <Box>
+                      <Typography variant="body1" fontWeight={600} sx={{ color: '#00D4FF' }}>
+                        Loading your files, please wait...
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Thank you for your patience. We are reading and preparing your files for upload. This may take a moment for large folders.
+                      </Typography>
+                    </Box>
+                  </Paper>
+                )}
+                {!folderLoading && pdfFiles.length > 0 && (
                   <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
                     {pdfFiles.length} valid files found.
                   </Typography>

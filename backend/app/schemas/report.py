@@ -71,12 +71,19 @@ class ReportOut(BaseModel):
     partial_duplicate: Optional[PartialDuplicateOut] = None
     storage: Optional[FileStorageOut] = None
     agency: Optional[AgencyOut] = None
+    has_pipeline_data: bool = False
 
     model_config = {"from_attributes": True}
 
     @classmethod
     def from_orm_with_uploader(cls, report):
         uploader_name = report.uploader.username if report.uploader else None
+        
+        # Check if report_data exists (might be loaded or need a lazy check, but we can do it via a count or if it's joined)
+        # However, to be safe, we rely on the service to populate an attribute or we just check if report_data is not None
+        # We will add an attribute `has_pipeline_data` to the report object in the service
+        _has_data = getattr(report, 'has_pipeline_data', False)
+        
         return cls(
             report_id=report.report_id,
             uploaded_by=report.uploaded_by,
@@ -97,6 +104,7 @@ class ReportOut(BaseModel):
             partial_duplicate=report.partial_duplicate,
             storage=report.storage,
             agency=report.agency,
+            has_pipeline_data=_has_data,
         )
 
 

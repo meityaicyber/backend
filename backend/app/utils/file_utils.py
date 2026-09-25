@@ -31,6 +31,16 @@ def validate_mime_type(file_bytes: bytes, expected_extension: str) -> Tuple[bool
         return detected_mime.startswith("text/"), detected_mime
 
     expected_mime = MIME_TYPE_MAP.get(expected_extension, "")
+
+    # For .pdf files, python-magic can misdetect some valid PDFs as text/plain
+    # (e.g. linearized PDFs, PDFs with long XML preambles, or PDFs whose %PDF
+    # header appears beyond the default sniff window). Fall back to checking
+    # for the %PDF magic marker anywhere in the first 4096 bytes.
+    if expected_extension == ".pdf" and detected_mime != expected_mime:
+        header_chunk = file_bytes[:4096]
+        if b"%PDF" in header_chunk:
+            return True, "application/pdf"
+
     return detected_mime == expected_mime, detected_mime
 
 

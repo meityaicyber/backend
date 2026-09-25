@@ -4,9 +4,9 @@ from typing import Optional, List, Dict, Any
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload, joinedload, defer
 
-from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, UploadStatus, PartialDuplicate
+from app.models.report import Report, ReportMetadata, FileValidation, FileStorage, UploadStatus, PartialDuplicate, ReportsData
 from app.models.audit import AuditLog
 from app.utils.file_utils import (
     validate_extension,
@@ -51,6 +51,16 @@ async def upload_report(
 
     # 2. Validate MIME type
     mime_valid, detected_mime = validate_mime_type(file_bytes, extension)
+    
+    # Auto-correct extension if the user uploaded a valid file type with the wrong extension
+    if not mime_valid:
+        if detected_mime.startswith("text/"):
+            extension = ".txt"
+            mime_valid = True
+        elif detected_mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document" or (detected_mime == "application/zip" and b"word/document.xml" in file_bytes[:200000]):
+            extension = ".docx"
+            mime_valid = True
+            
     if not mime_valid:
         await _create_audit_log(
             db, user_id, None, "FILE_UPLOAD", "FAILED",
@@ -302,6 +312,7 @@ async def get_reports(
         selectinload(Report.validation),
         selectinload(Report.partial_duplicate),
         selectinload(Report.storage),
+        selectinload(Report.report_data).load_only(ReportsData.report_id),
     )
 
     if search:
@@ -323,6 +334,9 @@ async def get_reports(
         query.order_by(Report.created_at.desc()).offset(skip).limit(limit)
     )
     reports = list(result.scalars().unique().all())
+    
+    for r in reports:
+        r.has_pipeline_data = r.report_data is not None
 
     return reports, total
 
@@ -340,10 +354,16 @@ async def get_report_by_id(
             selectinload(Report.validation),
             selectinload(Report.storage),
             selectinload(Report.partial_duplicate),
+            selectinload(Report.report_data).load_only(ReportsData.report_id),
         )
         .where(Report.report_id == report_id)
     )
-    return result.unique().scalar_one_or_none()
+    report = result.unique().scalar_one_or_none()
+    
+    if report:
+        report.has_pipeline_data = report.report_data is not None
+        
+    return report
 
 
 async def delete_report(
