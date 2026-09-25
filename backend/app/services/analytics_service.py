@@ -108,7 +108,7 @@ async def get_severity_distribution(db: AsyncSession, agency_id: Optional[UUID] 
         val = getattr(row.severity, 'value', str(row.severity)).split('.')[-1].upper()
         counts_map[val] = row.count
     return [
-        {"severity": s, "count": counts_map.get(s, 0)}
+        {"severity": s.upper(), "count": counts_map.get(s.upper(), 0)}
         for s in severity_order
     ]
 
@@ -127,13 +127,13 @@ async def get_status_distribution(db: AsyncSession, agency_id: Optional[UUID] = 
     rows = result.all()
 
     # Ensure all statuses appear
-    status_order = ["Open", "Closed", "Accepted", "Risk Accepted", "In Progress"]
+    status_order = ["Open", "Closed", "Partially Remediated"]
     counts_map = {}
     for row in rows:
         val = getattr(row.status, 'value', str(row.status)).split('.')[-1].upper()
         counts_map[val] = row.count
     return [
-        {"status": s, "count": counts_map.get(s, 0)}
+        {"status": s.upper(), "count": counts_map.get(s.upper(), 0)}
         for s in status_order
     ]
 
@@ -190,15 +190,15 @@ async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_i
     # Use raw SQL for date_trunc which is PostgreSQL specific
     base_sql = """
         SELECT
-            to_char(date_trunc('month', rd.report_date), 'YYYY-MM') AS month,
+            to_char(date_trunc('month', v.created_at), 'YYYY-MM') AS month,
             COUNT(v.finding_id) AS count
         FROM detailed_observations v
         JOIN reports_data rd ON v.report_id = rd.report_id
     """
     
     where_clauses = [
-        "rd.report_date >= (CURRENT_DATE - INTERVAL '12 months')",
-        "rd.report_date IS NOT NULL"
+        "v.created_at >= (CURRENT_DATE - INTERVAL '12 months')",
+        "v.created_at IS NOT NULL"
     ]
     params = {}
     
@@ -211,8 +211,8 @@ async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_i
         params["agency_id"] = str(agency_id)
         
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
-        GROUP BY date_trunc('month', rd.report_date)
-        ORDER BY date_trunc('month', rd.report_date)
+        GROUP BY date_trunc('month', v.created_at)
+        ORDER BY date_trunc('month', v.created_at)
     """
 
     result = await db.execute(text(sql_query), params)

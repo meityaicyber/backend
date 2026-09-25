@@ -98,6 +98,7 @@ const STATUS_COLORS = {
   ACCEPTED: '#7C4DFF',
   RISK_ACCEPTED: '#FF9100',
   IN_PROGRESS: '#00D4FF',
+  'PARTIALLY REMEDIATED': '#FFD600',
 };
 
 const ENUM_LABELS = {
@@ -111,6 +112,7 @@ const ENUM_LABELS = {
   ACCEPTED: 'Accepted',
   RISK_ACCEPTED: 'Risk Accepted',
   IN_PROGRESS: 'In Progress',
+  'PARTIALLY REMEDIATED': 'Partially Remediated',
 };
 
 function formatEnumLabel(label) {
