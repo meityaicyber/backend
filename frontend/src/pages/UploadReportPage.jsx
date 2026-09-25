@@ -36,9 +36,10 @@ function UploadReportPage() {
   
   // Use global context for bulk tracking
   const {
-    bulkFilesData, setBulkFilesData, bulkProgress, bulkTotal, bulkRunning, bulkFinished, setBulkFinished,
-    bulkStartTime, bulkEndTime, startBulkUpload, resetBulkState
-  } = useBulkUpload();
+      bulkFilesData, setBulkFilesData, bulkProgress, bulkTotal, bulkRunning, bulkFinished, setBulkFinished,
+      bulkStartTime, bulkEndTime, bulkPaused, etaSeconds,
+      startBulkUpload, pauseBulkUpload, resumeBulkUpload, resetBulkState
+    } = useBulkUpload();
   const [generatingExcel, setGeneratingExcel] = useState(false);
   const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
   const [folderLoading, setFolderLoading] = useState(false);
@@ -400,10 +401,11 @@ function UploadReportPage() {
       }
     }
 
-    const concurrency = batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1);
+    const concurrency = batchMode === 'batch8' ? 8 : (batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1));
     
     // Call the context function
-    await startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency);
+    startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency);
+      setPdfFiles([]); // Free memory!
   };
 
   const renderStatusChip = (status) => {
@@ -623,15 +625,38 @@ function UploadReportPage() {
                     <FormControlLabel value="sequential" control={<Radio />} label="Sequential (1 by 1)" />
                     <FormControlLabel value="batch2" control={<Radio />} label="Batch of 2" />
                     <FormControlLabel value="batch4" control={<Radio />} label="Batch of 4" />
+                    <FormControlLabel value="batch8" control={<Radio />} label="Batch of 8" />
                   </RadioGroup>
                 </FormControl>
               </Box>
 
-              <Box>
-                <Button variant="contained" color="primary" size="large" startIcon={<PlayArrow />} onClick={handleBulkLaunch} disabled={bulkRunning || pdfFiles.length === 0}>
-                  {bulkRunning ? 'Running...' : 'Launch Bulk Processing'}
-                </Button>
-              </Box>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                  <Button variant="contained" color="primary" size="large" startIcon={<PlayArrow />} onClick={handleBulkLaunch} disabled={bulkRunning || pdfFiles.length === 0}>
+                    {bulkRunning && !bulkPaused ? 'Running...' : 'Launch Bulk Processing'}
+                  </Button>
+                  
+                  {bulkRunning && !bulkFinished && !bulkPaused && (
+                    <Button variant="contained" color="warning" size="large" onClick={pauseBulkUpload}>
+                      Pause Queue
+                    </Button>
+                  )}
+                  {bulkPaused && !bulkFinished && (
+                    <Button variant="contained" color="success" size="large" onClick={resumeBulkUpload}>
+                      Resume Queue
+                    </Button>
+                  )}
+                  {(bulkRunning || bulkPaused) && !bulkFinished && (
+                    <Button variant="contained" color="error" size="large" onClick={() => { pauseBulkUpload(); setBulkFinished(true); setBulkRunning(false); }}>
+                      Stop
+                    </Button>
+                  )}
+                  
+                  {etaSeconds !== null && (
+                    <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
+                      ETA: {Math.floor(etaSeconds / 60)}m {etaSeconds % 60}s
+                    </Typography>
+                  )}
+                </Box>
 
               {/* Progress and Detailed Tracking Table */}
               {(bulkRunning || bulkFinished || bulkFilesData.length > 0) && (

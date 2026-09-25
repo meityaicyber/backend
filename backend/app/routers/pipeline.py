@@ -72,7 +72,7 @@ async def run_pipeline(
     # 4. Forward to AI Pipeline service
     pipeline_url = f"{settings.AI_PIPELINE_URL}/run"
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             response = await client.post(
                 pipeline_url,
                 data={"report_id": str(report_id)},

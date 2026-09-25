@@ -8,7 +8,8 @@ from sqlalchemy.pool import NullPool
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    poolclass=NullPool,
+    pool_size=20,
+    max_overflow=20,
 )
 
 AsyncSessionLocal = async_sessionmaker(
