@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.report import Report, ReportsData, Vulnerability, SeverityLevel, VulnStatus
+from app.models.report import Report, ReportsData, DetailedObservation, ObservationSeverity, ObservationStatus
 from app.models.agency import Agency
 
 # Deep Learning / Advanced ML Libraries
@@ -64,7 +64,7 @@ async def forecast_trends(
     Task 1: Trend Analysis (Time Series Forecasting)
     Upgraded to Facebook Prophet for robust feature engineering (seasonality, trend shifts).
     """
-    query = select(ReportsData.report_date, func.count(Vulnerability.vuln_id).label("count")).select_from(ReportsData).join(Vulnerability, ReportsData.report_id == Vulnerability.report_id).group_by(ReportsData.report_date).order_by(ReportsData.report_date)
+    query = select(ReportsData.report_date, func.count(DetailedObservation.finding_id).label("count")).select_from(ReportsData).join(DetailedObservation, ReportsData.report_id == DetailedObservation.report_id).group_by(ReportsData.report_date).order_by(ReportsData.report_date)
     result = await db.execute(query)
     rows = result.all()
     
@@ -112,9 +112,9 @@ async def severity_assessment(
     Task 2: Severity and Risk Assessment
     Upgraded to Batched Zero-Shot NLP with INT8 Quantization.
     """
-    query = select(Vulnerability)
+    query = select(DetailedObservation)
     if report_id:
-        query = query.where(Vulnerability.report_id == report_id)
+        query = query.where(DetailedObservation.report_id == report_id)
     else:
         # For massive scale, limit independent un-filtered assessments to top 500
         # to prevent OOM API crashes when viewing global data.
@@ -136,7 +136,7 @@ async def severity_assessment(
     # OPTIMIZATION 2: Dynamic Batching
     # Instead of predicting sequentially in a loop, we feed all texts to the pipeline
     # simultaneously utilizing internal batching and vectorized tensor math.
-    texts = [f"{v.vulnerability_title}. {v.description or ''} {v.impact or ''}" for v in vulns]
+    texts = [f"{v.title}. {v.observation_description or ''} {v.impact or ''}" for v in vulns]
     
     # Run in a background thread to prevent blocking FastAPI's async event loop
     results = await asyncio.to_thread(pipe, texts, candidate_labels, batch_size=16)
@@ -151,7 +151,7 @@ async def severity_assessment(
         top_label = res['labels'][0]
         
         suggested_severity = "INFORMATIONAL"
-        if top_label == "Critical Risk": suggested_severity = "CRITICAL"
+        if top_label == "Critical Risk": suggested_severity = "Critical"
         elif top_label == "High Risk": suggested_severity = "HIGH"
         elif top_label == "Medium Risk": suggested_severity = "MEDIUM"
         elif top_label == "Low Risk": suggested_severity = "LOW"
@@ -160,8 +160,8 @@ async def severity_assessment(
         confidence = round(res['scores'][0] * 100, 1)
         
         assessed_vulns.append({
-            "vuln_id": str(v.vuln_id),
-            "title": v.vulnerability_title,
+            "finding_id": str(v.finding_id),
+            "title": v.title,
             "current_severity": v.severity.value if v.severity else None,
             "suggested_severity": suggested_severity,
             "nlp_confidence": confidence,
@@ -185,15 +185,15 @@ async def regional_clusters(
         Agency.agency_id,
         Agency.agency_name,
         func.count(Report.report_id).label("total_reports"),
-        func.avg(Vulnerability.cvss_score).label("avg_cvss"),
-        func.count(Vulnerability.vuln_id).label("total_vulns"),
+        func.avg(DetailedObservation.cvss_score).label("avg_cvss"),
+        func.count(DetailedObservation.finding_id).label("total_vulns"),
         func.sum(
             case(
-                (Vulnerability.severity == SeverityLevel.CRITICAL, 1.0),
+                (DetailedObservation.severity == ObservationSeverity.CRITICAL, 1.0),
                 else_=0.0
             )
         ).label("critical_vulns")
-    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id).group_by(Agency.agency_id, Agency.agency_name)
+    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(DetailedObservation, Report.report_id == DetailedObservation.report_id).group_by(Agency.agency_id, Agency.agency_name)
     
     result = await db.execute(query)
     rows = result.all()
@@ -252,7 +252,7 @@ async def audit_score_anomalies(
     Task 4: Audit Score Comparisons (Anomaly Detection)
     Enhanced Isolation Forest with variance and percentile feature engineering.
     """
-    query = select(Agency.agency_id, Agency.agency_name, Report.report_id, Vulnerability.cvss_score).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
+    query = select(Agency.agency_id, Agency.agency_name, Report.report_id, DetailedObservation.cvss_score).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(DetailedObservation, Report.report_id == DetailedObservation.report_id)
     
     result = await db.execute(query)
     rows = result.all()
@@ -315,9 +315,9 @@ async def task_prioritization(
     """
     # OPTIMIZATION: Database-Level Scalability
     query = (
-        select(Vulnerability)
-        .where(Vulnerability.status == VulnStatus.OPEN)
-        .order_by(Vulnerability.cvss_score.desc())
+        select(DetailedObservation)
+        .where(DetailedObservation.status == ObservationStatus.OPEN)
+        .order_by(DetailedObservation.cvss_score.desc())
         .limit(1000)
     )
     result = await db.execute(query)
@@ -334,12 +334,12 @@ async def task_prioritization(
         # Exponential Decay / Non-linear urgency for Days Open
         urgency_score = math.exp(days_open / 100.0)
         
-        has_cve = 1 if (v.cve_ids and len(v.cve_ids) > 0) else 0
+        has_cve = 1 if (v.cve_id and len(v.cve_id) > 0) else 0
         cvss = float(v.cvss_score or 0.0)
         
-        data.append([str(v.vuln_id), v.vulnerability_title, cvss, days_open, urgency_score, has_cve])
+        data.append([str(v.finding_id), v.title, cvss, days_open, urgency_score, has_cve])
         
-    df = pd.DataFrame(data, columns=['vuln_id', 'title', 'cvss', 'days_open', 'urgency_score', 'has_cve'])
+    df = pd.DataFrame(data, columns=['finding_id', 'title', 'cvss', 'days_open', 'urgency_score', 'has_cve'])
     
     X = df[['cvss', 'urgency_score', 'has_cve']].values
     
@@ -364,7 +364,7 @@ async def task_prioritization(
     prioritized = []
     for _, row in df.iterrows():
         prioritized.append({
-            "vuln_id": row['vuln_id'],
+            "finding_id": row['finding_id'],
             "title": row['title'],
             "cvss": row['cvss'],
             "days_open": row['days_open'],

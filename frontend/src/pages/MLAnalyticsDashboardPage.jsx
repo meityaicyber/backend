@@ -244,7 +244,7 @@ export default function MLAnalyticsDashboardPage() {
                       <TableRow><TableCell colSpan={4} align="center">No open tasks</TableCell></TableRow>
                     ) : (
                       prioritize?.data?.map((task) => (
-                        <TableRow key={task.vuln_id}>
+                        <TableRow key={task.finding_id}>
                           <TableCell sx={{ maxWidth: 200 }}><Typography noWrap variant="body2">{task.title}</Typography></TableCell>
                           <TableCell>{task.cvss}</TableCell>
                           <TableCell>{task.days_open}</TableCell>
@@ -397,7 +397,7 @@ export default function MLAnalyticsDashboardPage() {
                 </TableHead>
                 <TableBody>
                   {prioritize?.data?.map((task) => (
-                    <TableRow key={task.vuln_id}>
+                    <TableRow key={task.finding_id}>
                       <TableCell>{task.title}</TableCell>
                       <TableCell>{task.cvss}</TableCell>
                       <TableCell>{task.days_open}</TableCell>

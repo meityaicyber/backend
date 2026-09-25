@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import AsyncSessionLocal
 from app.models.agency import Agency
-from app.models.report import Report, ReportsData, Vulnerability, SeverityLevel, VulnStatus, UploadStatus
+from app.models.report import Report, ReportsData, DetailedObservation, ObservationSeverity, ObservationStatus, UploadStatus
 from app.models.user import User, Role, UserRole, UserSession
 from app.models.audit import AuditLog, SecurityEvent
 
@@ -77,21 +77,21 @@ async def seed_data():
                     cvss = round(random.uniform(2.0, 6.9), 1)
                 
                 if cvss >= 9.0:
-                    sev = SeverityLevel.CRITICAL
+                    sev = ObservationSeverity.Critical
                 elif cvss >= 7.0:
-                    sev = SeverityLevel.HIGH
+                    sev = ObservationSeverity.High
                 elif cvss >= 4.0:
-                    sev = SeverityLevel.MEDIUM
+                    sev = ObservationSeverity.Medium
                 else:
-                    sev = SeverityLevel.LOW
+                    sev = ObservationSeverity.Low
                     
-                vuln = Vulnerability(
-                    vuln_id=uuid.uuid4(),
+                vuln = DetailedObservation(
+                    finding_id=uuid.uuid4(),
                     report_id=report_id,
-                    vulnerability_title=f"Mock Vulnerability {v_idx} for Report {i}",
+                    title=f"Mock DetailedObservation {v_idx} for Report {i}",
                     severity=sev,
                     cvss_score=cvss,
-                    status=random.choice(list(VulnStatus)),
+                    status=random.choice(list(ObservationStatus)),
                     created_at=report_time,
                     updated_at=report_time
                 )

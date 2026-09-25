@@ -311,7 +311,7 @@ function ReportDetailPage() {
                 </thead>
                 <tbody>
                   {assessments.map((vuln) => (
-                    <tr key={vuln.vuln_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <tr key={vuln.finding_id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '12px' }}>
                         <Typography variant="body2">{vuln.title}</Typography>
                       </td>

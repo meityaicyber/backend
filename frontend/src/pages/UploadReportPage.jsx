@@ -65,12 +65,37 @@ function UploadReportPage() {
       if (selectedAgency) formData.append('agency_id', selectedAgency);
 
       try {
-        const response = await api.post('/api/reports/upload', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
-        });
-        setResult(response.data);
-        enqueueSnackbar('File uploaded successfully!', { variant: 'success' });
+        let reportId = null;
+        try {
+          const response = await api.post('/api/reports/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
+          });
+          reportId = response.data.report_id;
+          setResult(response.data); // Optimistically set result
+          enqueueSnackbar('File uploaded successfully! Running AI pipeline...', { variant: 'info' });
+          
+          await api.post(`/api/reports/${reportId}/run-pipeline`);
+          enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
+        } catch (err) {
+          const msg = err.response?.data?.detail || 'Operation failed';
+          if (msg === 'PASSWORD_REQUIRED') {
+            throw err; // Let outer catch handle password required
+          }
+          if (reportId) {
+            enqueueSnackbar(`Pipeline failed: ${msg}. Rolling back...`, { variant: 'error' });
+            try {
+              await api.delete(`/api/reports/${reportId}`);
+              setError(`${msg}. File deleted from system.`);
+            } catch (rollbackErr) {
+              setError(`${msg}. Rollback failed.`);
+            }
+            setResult(null); // Clear result since it failed
+          } else {
+            setError(msg);
+            enqueueSnackbar(msg, { variant: 'error' });
+          }
+        }
       } catch (err) {
         const msg = err.response?.data?.detail;
         if (msg === 'PASSWORD_REQUIRED') {
@@ -94,13 +119,39 @@ function UploadReportPage() {
     if (selectedAgency) formData.append('agency_id', selectedAgency);
 
     try {
-      const response = await api.post('/api/reports/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
-      });
-      setResult(response.data);
-      enqueueSnackbar('File unlocked and uploaded successfully!', { variant: 'success' });
-      setPasswordRequired(false); setPasswordInput(''); setPendingFile(null);
+      let reportId = null;
+      try {
+        const response = await api.post('/api/reports/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (e) => setProgress(Math.round((e.loaded * 100) / (e.total || 1))),
+        });
+        reportId = response.data.report_id;
+        setResult(response.data);
+        enqueueSnackbar('File unlocked and uploaded successfully! Running AI pipeline...', { variant: 'info' });
+        setPasswordRequired(false); setPasswordInput(''); setPendingFile(null);
+        
+        await api.post(`/api/reports/${reportId}/run-pipeline`);
+        enqueueSnackbar('AI Pipeline completed successfully!', { variant: 'success' });
+      } catch (err) {
+        const msg = err.response?.data?.detail || 'Operation failed';
+        if (msg === 'INVALID_PASSWORD') {
+          throw err;
+        }
+        if (reportId) {
+          enqueueSnackbar(`Pipeline failed: ${msg}. Rolling back...`, { variant: 'error' });
+          try {
+            await api.delete(`/api/reports/${reportId}`);
+            setError(`${msg}. File deleted from system.`);
+          } catch (rollbackErr) {
+            setError(`${msg}. Rollback failed.`);
+          }
+          setResult(null);
+        } else {
+          setError(msg);
+          enqueueSnackbar(msg, { variant: 'error' });
+          setPasswordRequired(false); setPasswordInput(''); setPendingFile(null);
+        }
+      }
     } catch (err) {
       const msg = err.response?.data?.detail;
       if (msg === 'INVALID_PASSWORD') {
@@ -375,10 +426,18 @@ function UploadReportPage() {
             {uploading && (
               <Box sx={{ mt: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2" fontWeight={500}>Uploading...</Typography>
-                  <Typography variant="body2" color="text.secondary">{progress}%</Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    {progress < 100 ? 'Uploading...' : 'Running in pipeline...'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {progress < 100 ? `${progress}%` : 'Processing'}
+                  </Typography>
                 </Box>
-                <LinearProgress variant="determinate" value={progress} sx={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(0, 212, 255, 0.1)', '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #00D4FF, #00E676)' } }} />
+                <LinearProgress 
+                  variant={progress < 100 ? "determinate" : "indeterminate"} 
+                  value={progress < 100 ? progress : undefined} 
+                  sx={{ height: 8, borderRadius: 4, backgroundColor: 'rgba(0, 212, 255, 0.1)', '& .MuiLinearProgress-bar': { background: 'linear-gradient(90deg, #00D4FF, #00E676)' } }} 
+                />
               </Box>
             )}
 

@@ -28,5 +28,5 @@ export const files = Array.from({ length: 50 }, (_, i) => ({
   agencyId: agencies[i % 10].id, // 5 files per agency
   name: `Audit_Report_v${Math.floor(Math.random() * 10)}.${Math.floor(Math.random() * 10)}.pdf`,
   date: new Date(Date.now() - Math.floor(Math.random() * 10000000000)).toISOString(),
-  vulnerabilities: generateVulnerabilities(Math.floor(Math.random() * 15) + 5), // 5-20 vulns per file
+  detailed_observations: generateVulnerabilities(Math.floor(Math.random() * 15) + 5), // 5-20 vulns per file
 }));

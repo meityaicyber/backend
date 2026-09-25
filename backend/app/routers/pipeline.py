@@ -18,7 +18,7 @@ import httpx
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.models.report import ReportsData, Vulnerability, SeverityLevel, VulnStatus
+from app.models.report import ReportsData, DetailedObservation, ObservationSeverity, ObservationStatus, ObservationImpact, ObservationLikelihood, ObservationNewRepeat
 from app.services import report_service
 from app.config import settings
 
@@ -82,11 +82,11 @@ async def run_pipeline(
             
             data = response.json()
             
-            # Extract vulnerabilities to store them ONLY in the vulnerabilities table
-            vulns = data.pop("vulnerabilities", [])
+            # Extract vulnerabilities (check both keys just in case)
+            vulns = data.pop("detailed_observations", data.pop("vulnerabilities", []))
             
             # 5. Save results to DB
-            # Upsert ReportsData (store everything EXCEPT vulnerabilities)
+            # Upsert ReportsData (store everything EXCEPT detailed_observations)
             existing_rd_res = await db.execute(select(ReportsData).where(ReportsData.report_id == report_id))
             rd = existing_rd_res.scalar_one_or_none()
             if rd:
@@ -101,48 +101,78 @@ async def run_pipeline(
                 )
                 db.add(rd)
             
-            # Clear existing vulnerabilities
-            await db.execute(delete(Vulnerability).where(Vulnerability.report_id == report_id))
+            # Clear existing detailed observations
+            await db.execute(delete(DetailedObservation).where(DetailedObservation.report_id == report_id))
             
-            # Insert new vulnerabilities
+            # Insert new detailed observations
             for v in vulns:
                 severity_str = str(v.get("severity", "")).upper()
                 severity_enum = None
-                if severity_str == "CRITICAL": severity_enum = SeverityLevel.CRITICAL
-                elif severity_str == "HIGH": severity_enum = SeverityLevel.HIGH
-                elif severity_str == "MEDIUM": severity_enum = SeverityLevel.MEDIUM
-                elif severity_str == "LOW": severity_enum = SeverityLevel.LOW
-                elif severity_str == "INFORMATIONAL": severity_enum = SeverityLevel.INFORMATIONAL
+                if severity_str == "CRITICAL": severity_enum = ObservationSeverity.CRITICAL
+                elif severity_str == "HIGH": severity_enum = ObservationSeverity.HIGH
+                elif severity_str == "MEDIUM": severity_enum = ObservationSeverity.MEDIUM
+                elif severity_str == "LOW": severity_enum = ObservationSeverity.LOW
                 
                 status_str = str(v.get("status", "")).upper()
-                status_enum = VulnStatus.OPEN
-                if status_str == "CLOSED": status_enum = VulnStatus.CLOSED
-                elif status_str == "ACCEPTED": status_enum = VulnStatus.ACCEPTED
-                elif status_str == "RISK ACCEPTED": status_enum = VulnStatus.RISK_ACCEPTED
-                elif status_str == "IN PROGRESS": status_enum = VulnStatus.IN_PROGRESS
+                status_enum = None
+                if status_str == "OPEN": status_enum = ObservationStatus.OPEN
+                elif status_str == "CLOSED": status_enum = ObservationStatus.CLOSED
+                elif "PARTIALLY" in status_str: status_enum = ObservationStatus.PARTIALLY_REMEDIATED
+
+                impact_str = str(v.get("impact_level", "")).upper()
+                impact_enum = None
+                if impact_str == "MAJOR": impact_enum = ObservationImpact.MAJOR
+                elif impact_str == "MODERATE": impact_enum = ObservationImpact.MODERATE
+                elif impact_str == "MINOR": impact_enum = ObservationImpact.MINOR
+
+                like_str = str(v.get("likelihood_level", "")).upper()
+                like_enum = None
+                if like_str == "EASY": like_enum = ObservationLikelihood.EASY
+                elif like_str == "MODERATE": like_enum = ObservationLikelihood.MODERATE
+                elif like_str == "HARD": like_enum = ObservationLikelihood.HARD
+
+                nr_str = str(v.get("new_or_repeat", "")).upper()
+                nr_enum = None
+                if nr_str == "NEW": nr_enum = ObservationNewRepeat.NEW
+                elif nr_str == "REPEAT": nr_enum = ObservationNewRepeat.REPEAT
+
+                # Parse date if available
+                obs_date = None
+                date_str = v.get("observation_date")
+                if date_str:
+                    try:
+                        obs_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
                 
-                vuln = Vulnerability(
+                obs = DetailedObservation(
                     report_id=report_id,
-                    vulnerability_title=v.get("vulnerability_title", "Unknown Vulnerability"),
-                    category=v.get("category"),
-                    severity=severity_enum,
-                    cvss_score=v.get("cvss_score"),
-                    cve_ids=v.get("cve_ids", []),
-                    cwe_ids=v.get("cwe_ids", []),
-                    affected_assets=v.get("affected_assets", []),
+                    title=v.get("title", v.get("vulnerability_title", "Unknown Title")),
                     status=status_enum,
-                    new_or_repeat=v.get("new_or_repeat"),
-                    revalidation_status=v.get("revalidation_status"),
-                    detailed_observation=v.get("detailed_observation"),
-                    description=v.get("description"),
-                    impact=v.get("impact"),
-                    recommendation=v.get("recommendation"),
+                    severity=severity_enum,
+                    impact_level=impact_enum,
+                    likelihood_level=like_enum,
+                    cve_id=v.get("cve_id", v.get("cve_ids", [])),
+                    cvss_score=v.get("cvss_score"),
+                    cvss_vector=v.get("cvss_vector"),
+                    severity_rationale=v.get("severity_rationale"),
+                    reported_epss_score=v.get("reported_epss_score"),
+                    observation_date=obs_date,
+                    cwe=v.get("cwe", v.get("cwe_ids", [])),
+                    affected_asset=v.get("affected_asset", v.get("affected_assets", [])),
+                    regulatory_references=v.get("regulatory_references", []),
+                    observation_description=v.get("observation_description", v.get("detailed_observation")),
+                    preconditions=v.get("preconditions"),
                     proof_of_concept=v.get("proof_of_concept"),
-                    reproduction_steps=v.get("reproduction_steps"),
+                    impact=v.get("impact"),
+                    likely_root_cause=v.get("likely_root_cause"),
+                    recommendation=v.get("recommendation"),
                     reference=v.get("reference"),
+                    new_or_repeat=nr_enum,
                     meta_data=v.get("additional meta", {})
                 )
-                db.add(vuln)
+                db.add(obs)
+
                 
             await db.commit()
             
@@ -200,35 +230,40 @@ async def get_pipeline_results(
         
     data = dict(rd.data)
     
-    # 3. Stitch vulnerabilities back in for the frontend API response
-    vuln_res = await db.execute(select(Vulnerability).where(Vulnerability.report_id == report_id))
+    # 3. Stitch detailed observations back in for the frontend API response
+    vuln_res = await db.execute(select(DetailedObservation).where(DetailedObservation.report_id == report_id))
     vulns_db = vuln_res.scalars().all()
     
     vuln_list = []
     for v in vulns_db:
         vuln_list.append({
-            "report id": str(v.report_id),
-            "id": v.meta_data.get("ai_id", "") if isinstance(v.meta_data, dict) else "",
-            "vulnerability_title": v.vulnerability_title,
-            "category": v.category or "",
-            "severity": v.severity.value if v.severity else "",
-            "cvss_score": float(v.cvss_score) if v.cvss_score is not None else None,
-            "cve_ids": v.cve_ids or [""],
-            "cwe_ids": v.cwe_ids or [""],
-            "affected_assets": v.affected_assets or [""],
+            "report_id": str(v.report_id),
+            "finding_id": str(v.finding_id),
+            "title": v.title or "",
             "status": v.status.value if v.status else "",
-            "detailed_observation": v.detailed_observation or "",
-            "description": v.description or "",
+            "severity": v.severity.value if v.severity else "",
+            "impact_level": v.impact_level.value if v.impact_level else "",
+            "likelihood_level": v.likelihood_level.value if v.likelihood_level else "",
+            "cve_id": v.cve_id or [],
+            "cvss_score": float(v.cvss_score) if v.cvss_score is not None else None,
+            "cvss_vector": v.cvss_vector or "",
+            "severity_rationale": v.severity_rationale or "",
+            "reported_epss_score": float(v.reported_epss_score) if v.reported_epss_score is not None else None,
+            "observation_date": v.observation_date.isoformat() if v.observation_date else "",
+            "cwe": v.cwe or [],
+            "affected_asset": v.affected_asset or [],
+            "regulatory_references": v.regulatory_references or [],
+            "observation_description": v.observation_description or "",
+            "preconditions": v.preconditions or "",
+            "proof_of_concept": v.proof_of_concept or [],
             "impact": v.impact or "",
+            "likely_root_cause": v.likely_root_cause or "",
             "recommendation": v.recommendation or "",
-            "proof_of_concept": v.proof_of_concept or "",
-            "reproduction_steps": v.reproduction_steps,
             "reference": v.reference or "",
-            "new_or_repeat": v.new_or_repeat or "",
-            "revalidation_status": v.revalidation_status,
+            "new_or_repeat": v.new_or_repeat.value if v.new_or_repeat else "",
             "additional meta": v.meta_data or {}
         })
-    data["vulnerabilities"] = vuln_list
+    data["detailed_observations"] = vuln_list
     
     # 4. Re-order keys exactly as masterjson structure
     master_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../masterjson strcture.json"))

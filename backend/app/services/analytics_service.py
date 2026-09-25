@@ -5,15 +5,15 @@ from uuid import UUID
 from sqlalchemy import select, func, case, literal_column, text, cast, Integer, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.report import Vulnerability, ReportsData, SeverityLevel, VulnStatus, Report
+from app.models.report import DetailedObservation, ReportsData, ObservationSeverity, ObservationStatus, Report
 
 
 def apply_orm_filters(query, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None):
     from datetime import datetime, timedelta, timezone
     if report_id:
-        query = query.where(Vulnerability.report_id == report_id)
+        query = query.where(DetailedObservation.report_id == report_id)
     elif agency_id:
-        query = query.join(Report, Vulnerability.report_id == Report.report_id).where(Report.agency_id == agency_id)
+        query = query.join(Report, DetailedObservation.report_id == Report.report_id).where(Report.agency_id == agency_id)
         
     if time_range and time_range != 'ALL':
         days = 0
@@ -22,39 +22,39 @@ def apply_orm_filters(query, agency_id: Optional[UUID] = None, report_id: Option
         elif time_range == '1_YEAR': days = 365
         if days > 0:
             threshold = datetime.now(timezone.utc) - timedelta(days=days)
-            query = query.where(Vulnerability.created_at >= threshold)
+            query = query.where(DetailedObservation.created_at >= threshold)
             
     if severities:
-        query = query.where(Vulnerability.severity.in_([SeverityLevel(s) for s in severities]))
+        query = query.where(DetailedObservation.severity.in_([ObservationSeverity(s) for s in severities]))
         
     if statuses:
-        query = query.where(Vulnerability.status.in_([VulnStatus(s) for s in statuses]))
+        query = query.where(DetailedObservation.status.in_([ObservationStatus(s) for s in statuses]))
         
     return query
 
 
 async def get_summary(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> dict:
     """Get high-level vulnerability analytics summary."""
-    # Total vulnerabilities
-    total_query = select(func.count(Vulnerability.vuln_id))
+    # Total detailed_observations
+    total_query = select(func.count(DetailedObservation.finding_id))
     total_query = apply_orm_filters(total_query, agency_id, report_id, time_range, severities, statuses)
     total_result = await db.execute(total_query)
-    total_vulnerabilities = total_result.scalar() or 0
+    total_detailed_observations = total_result.scalar() or 0
 
-    # Open vulnerabilities
-    open_query = select(func.count(Vulnerability.vuln_id)).where(Vulnerability.status == VulnStatus.OPEN)
+    # Open detailed_observations
+    open_query = select(func.count(DetailedObservation.finding_id)).where(DetailedObservation.status == ObservationStatus.OPEN)
     open_query = apply_orm_filters(open_query, agency_id, report_id, time_range, severities, statuses)
     open_result = await db.execute(open_query)
-    open_vulnerabilities = open_result.scalar() or 0
+    open_detailed_observations = open_result.scalar() or 0
 
-    # Closed vulnerabilities
-    closed_query = select(func.count(Vulnerability.vuln_id)).where(Vulnerability.status == VulnStatus.CLOSED)
+    # Closed detailed_observations
+    closed_query = select(func.count(DetailedObservation.finding_id)).where(DetailedObservation.status == ObservationStatus.CLOSED)
     closed_query = apply_orm_filters(closed_query, agency_id, report_id, time_range, severities, statuses)
     closed_result = await db.execute(closed_query)
-    closed_vulnerabilities = closed_result.scalar() or 0
+    closed_detailed_observations = closed_result.scalar() or 0
 
     # Average CVSS score
-    avg_query = select(func.avg(Vulnerability.cvss_score)).where(Vulnerability.cvss_score.isnot(None))
+    avg_query = select(func.avg(DetailedObservation.cvss_score)).where(DetailedObservation.cvss_score.isnot(None))
     avg_query = apply_orm_filters(avg_query, agency_id, report_id, time_range, severities, statuses)
     avg_result = await db.execute(avg_query)
     avg_cvss = avg_result.scalar()
@@ -62,47 +62,47 @@ async def get_summary(db: AsyncSession, agency_id: Optional[UUID] = None, report
 
     # Severity counts
     severity_counts = {}
-    for level in SeverityLevel:
-        count_query = select(func.count(Vulnerability.vuln_id)).where(Vulnerability.severity == level)
+    for level in ObservationSeverity:
+        count_query = select(func.count(DetailedObservation.finding_id)).where(DetailedObservation.severity == level)
         count_query = apply_orm_filters(count_query, agency_id, report_id, time_range, severities, statuses)
         count_result = await db.execute(count_query)
         severity_counts[level.value] = count_result.scalar() or 0
 
-    # Reports with vulnerabilities
-    reports_query = select(func.count(func.distinct(Vulnerability.report_id)))
+    # Reports with detailed_observations
+    reports_query = select(func.count(func.distinct(DetailedObservation.report_id)))
     reports_query = apply_orm_filters(reports_query, agency_id, report_id, time_range, severities, statuses)
     reports_result = await db.execute(reports_query)
-    reports_with_vulns = reports_result.scalar() or 0
+    reports_with_detailed_observations = reports_result.scalar() or 0
 
     return {
-        "total_vulnerabilities": total_vulnerabilities,
-        "open_vulnerabilities": open_vulnerabilities,
-        "closed_vulnerabilities": closed_vulnerabilities,
+        "total_detailed_observations": total_detailed_observations,
+        "open_detailed_observations": open_detailed_observations,
+        "closed_detailed_observations": closed_detailed_observations,
         "avg_cvss_score": avg_cvss_score,
-        "critical_count": severity_counts.get("CRITICAL", 0),
-        "high_count": severity_counts.get("HIGH", 0),
-        "medium_count": severity_counts.get("MEDIUM", 0),
-        "low_count": severity_counts.get("LOW", 0),
-        "informational_count": severity_counts.get("INFORMATIONAL", 0),
-        "reports_with_vulns": reports_with_vulns,
+        "critical_count": severity_counts.get("Critical", 0),
+        "high_count": severity_counts.get("High", 0),
+        "medium_count": severity_counts.get("Medium", 0),
+        "low_count": severity_counts.get("Low", 0),
+        "informational_count": severity_counts.get("Informational", 0),
+        "reports_with_detailed_observations": reports_with_detailed_observations,
     }
 
 
 async def get_severity_distribution(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
     """Get vulnerability count per severity level."""
     query = select(
-        cast(Vulnerability.severity, String).label("severity"),
-        func.count(Vulnerability.vuln_id).label("count"),
-    ).where(Vulnerability.severity.isnot(None))
+        cast(DetailedObservation.severity, String).label("severity"),
+        func.count(DetailedObservation.finding_id).label("count"),
+    ).where(DetailedObservation.severity.isnot(None))
     
     query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
-    query = query.group_by(Vulnerability.severity).order_by(func.count(Vulnerability.vuln_id).desc())
+    query = query.group_by(DetailedObservation.severity).order_by(func.count(DetailedObservation.finding_id).desc())
     
     result = await db.execute(query)
     rows = result.all()
 
     # Ensure all severity levels appear, even with 0 count
-    severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFORMATIONAL"]
+    severity_order = ["Critical", "High", "Medium", "Low", "Informational"]
     counts_map = {}
     for row in rows:
         val = getattr(row.severity, 'value', str(row.severity)).split('.')[-1].upper()
@@ -116,18 +116,18 @@ async def get_severity_distribution(db: AsyncSession, agency_id: Optional[UUID] 
 async def get_status_distribution(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
     """Get vulnerability count per status."""
     query = select(
-        cast(Vulnerability.status, String).label("status"),
-        func.count(Vulnerability.vuln_id).label("count"),
-    ).where(Vulnerability.status.isnot(None))
+        cast(DetailedObservation.status, String).label("status"),
+        func.count(DetailedObservation.finding_id).label("count"),
+    ).where(DetailedObservation.status.isnot(None))
 
     query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
-    query = query.group_by(Vulnerability.status).order_by(func.count(Vulnerability.vuln_id).desc())
+    query = query.group_by(DetailedObservation.status).order_by(func.count(DetailedObservation.finding_id).desc())
 
     result = await db.execute(query)
     rows = result.all()
 
     # Ensure all statuses appear
-    status_order = ["OPEN", "CLOSED", "ACCEPTED", "RISK_ACCEPTED", "IN_PROGRESS"]
+    status_order = ["Open", "Closed", "Accepted", "Risk Accepted", "In Progress"]
     counts_map = {}
     for row in rows:
         val = getattr(row.status, 'value', str(row.status)).split('.')[-1].upper()
@@ -155,10 +155,10 @@ async def get_cvss_distribution(db: AsyncSession, agency_id: Optional[UUID] = No
     ]
 
     for label, low, high in ranges:
-        query = select(func.count(Vulnerability.vuln_id)).where(
-            Vulnerability.cvss_score.isnot(None),
-            Vulnerability.cvss_score >= low,
-            Vulnerability.cvss_score < high,
+        query = select(func.count(DetailedObservation.finding_id)).where(
+            DetailedObservation.cvss_score.isnot(None),
+            DetailedObservation.cvss_score >= low,
+            DetailedObservation.cvss_score < high,
         )
         query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
         result = await db.execute(query)
@@ -171,16 +171,18 @@ async def get_cvss_distribution(db: AsyncSession, agency_id: Optional[UUID] = No
 async def get_category_breakdown(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
     """Get top 15 vulnerability categories by count."""
     query = select(
-        Vulnerability.category,
-        func.count(Vulnerability.vuln_id).label("count"),
-    ).where(Vulnerability.category.isnot(None), Vulnerability.category != "")
+        DetailedObservation.impact_level,
+        func.count(DetailedObservation.finding_id).label("count"),
+    # `impact_level` is a PostgreSQL enum, so comparing it to an empty string
+    # causes asyncpg to reject the bound value as an invalid enum member.
+    ).where(DetailedObservation.impact_level.isnot(None))
     
     query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
-    query = query.group_by(Vulnerability.category).order_by(func.count(Vulnerability.vuln_id).desc()).limit(15)
+    query = query.group_by(DetailedObservation.impact_level).order_by(func.count(DetailedObservation.finding_id).desc()).limit(15)
 
     result = await db.execute(query)
     rows = result.all()
-    return [{"category": row.category, "count": row.count} for row in rows]
+    return [{"impact_level": row.impact_level, "count": row.count} for row in rows]
 
 
 async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
@@ -189,8 +191,8 @@ async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_i
     base_sql = """
         SELECT
             to_char(date_trunc('month', rd.report_date), 'YYYY-MM') AS month,
-            COUNT(v.vuln_id) AS count
-        FROM vulnerabilities v
+            COUNT(v.finding_id) AS count
+        FROM detailed_observations v
         JOIN reports_data rd ON v.report_id = rd.report_id
     """
     
@@ -219,83 +221,86 @@ async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_i
 
 
 async def get_top_cwe(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
-    """Get top 10 CWE IDs by frequency (unnest the cwe_ids array)."""
+    """Get top 10 CWE IDs by frequency (unnest the cwe array)."""
     base_sql = """
-        SELECT cwe, COUNT(*) AS count
-        FROM vulnerabilities v, unnest(v.cwe_ids) AS cwe
+        SELECT cwe_item.cwe_id, COUNT(*) AS count
+        FROM detailed_observations AS v
     """
     
-    where_clauses = ["v.cwe_ids IS NOT NULL"]
+    where_clauses = ["v.cwe IS NOT NULL"]
     params = {}
     
     if report_id:
         where_clauses.append("v.report_id = :report_id")
         params["report_id"] = str(report_id)
     elif agency_id:
-        base_sql += " JOIN reports r ON v.report_id = r.report_id "
+        base_sql += " JOIN reports AS r ON v.report_id = r.report_id "
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
-        
+
+    base_sql += " CROSS JOIN LATERAL unnest(v.cwe) AS cwe_item(cwe_id) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
-        GROUP BY cwe
+        GROUP BY cwe_item.cwe_id
         ORDER BY count DESC
         LIMIT 10
     """
     
     result = await db.execute(text(sql_query), params)
     rows = result.all()
-    return [{"cwe_id": row.cwe, "count": row.count} for row in rows]
+    return [{"cwe_id": row.cwe_id, "count": row.count} for row in rows]
 
 
 async def get_top_cve(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
-    """Get top 10 CVE IDs by frequency (unnest the cve_ids array)."""
+    """Get top 10 CVE IDs by frequency (unnest the cve_id array)."""
     base_sql = """
-        SELECT cve, COUNT(*) AS count
-        FROM vulnerabilities v, unnest(v.cve_ids) AS cve
+        SELECT cve_item.cve_id, COUNT(*) AS count
+        FROM detailed_observations AS v
     """
     
-    where_clauses = ["v.cve_ids IS NOT NULL"]
+    where_clauses = ["v.cve_id IS NOT NULL"]
     params = {}
     
     if report_id:
         where_clauses.append("v.report_id = :report_id")
         params["report_id"] = str(report_id)
     elif agency_id:
-        base_sql += " JOIN reports r ON v.report_id = r.report_id "
+        base_sql += " JOIN reports AS r ON v.report_id = r.report_id "
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
-        
+
+    base_sql += " CROSS JOIN LATERAL unnest(v.cve_id) AS cve_item(cve_id) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
-        GROUP BY cve
+        GROUP BY cve_item.cve_id
         ORDER BY count DESC
         LIMIT 10
     """
 
     result = await db.execute(text(sql_query), params)
     rows = result.all()
-    return [{"cve_id": row.cve, "count": row.count} for row in rows]
+    return [{"cve_id": row.cve_id, "count": row.count} for row in rows]
 
 
 async def get_affected_assets(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
-    """Get top 15 most-attacked assets (unnest the affected_assets array)."""
+    """Get top 15 most-attacked assets (unnest the affected_asset array)."""
     base_sql = """
-        SELECT asset, COUNT(*) AS count
-        FROM vulnerabilities v, unnest(v.affected_assets) AS asset
+        SELECT asset_item.asset, COUNT(*) AS count
+        FROM detailed_observations AS v
     """
     
-    where_clauses = ["v.affected_assets IS NOT NULL"]
+    where_clauses = ["v.affected_asset IS NOT NULL"]
     params = {}
     
     if report_id:
         where_clauses.append("v.report_id = :report_id")
         params["report_id"] = str(report_id)
     elif agency_id:
-        base_sql += " JOIN reports r ON v.report_id = r.report_id "
+        base_sql += " JOIN reports AS r ON v.report_id = r.report_id "
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
-        
+
+    base_sql += " CROSS JOIN LATERAL unnest(v.affected_asset) AS asset_item(asset) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
-        GROUP BY asset
+        GROUP BY asset_item.asset
         ORDER BY count DESC
         LIMIT 15
     """
@@ -308,15 +313,14 @@ async def get_affected_assets(db: AsyncSession, agency_id: Optional[UUID] = None
 async def get_new_vs_repeat(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
     """Get count of New vs Repeat findings."""
     query = select(
-        Vulnerability.new_or_repeat,
-        func.count(Vulnerability.vuln_id).label("count"),
+        DetailedObservation.new_or_repeat,
+        func.count(DetailedObservation.finding_id).label("count"),
     ).where(
-        Vulnerability.new_or_repeat.isnot(None),
-        Vulnerability.new_or_repeat != "",
+        DetailedObservation.new_or_repeat.isnot(None),
     )
 
     query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
-    query = query.group_by(Vulnerability.new_or_repeat).order_by(func.count(Vulnerability.vuln_id).desc())
+    query = query.group_by(DetailedObservation.new_or_repeat).order_by(func.count(DetailedObservation.finding_id).desc())
 
     result = await db.execute(query)
     rows = result.all()
@@ -324,22 +328,22 @@ async def get_new_vs_repeat(db: AsyncSession, agency_id: Optional[UUID] = None, 
 
 
 async def get_recent_vulns(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> list:
-    """Get the latest 10 vulnerabilities."""
-    query = select(Vulnerability)
+    """Get the latest 10 detailed_observations."""
+    query = select(DetailedObservation)
     query = apply_orm_filters(query, agency_id, report_id, time_range, severities, statuses)
-    query = query.order_by(Vulnerability.created_at.desc()).limit(10)
+    query = query.order_by(DetailedObservation.created_at.desc()).limit(10)
 
     result = await db.execute(query)
     vulns = result.scalars().all()
     return [
         {
-            "vuln_id": str(v.vuln_id),
+            "finding_id": str(v.finding_id),
             "report_id": str(v.report_id),
-            "vulnerability_title": v.vulnerability_title,
+            "title": v.title,
             "severity": v.severity.value if v.severity else None,
             "status": v.status.value if v.status else None,
             "cvss_score": float(v.cvss_score) if v.cvss_score is not None else None,
-            "category": v.category,
+            "impact_level": v.impact_level,
             "created_at": v.created_at.isoformat(),
         }
         for v in vulns

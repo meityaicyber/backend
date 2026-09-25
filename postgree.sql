@@ -177,243 +177,7 @@ CREATE TABLE IF NOT EXISTS "public"."alembic_version" (
     CONSTRAINT "alembic_version_pkc" PRIMARY KEY ("version_num")
 );
 
-CREATE TABLE IF NOT EXISTS "public"."vapt_reports" (
-    "report_id"                     uuid            NOT NULL,
-    "report_id_label"               varchar(100)    NOT NULL,
-    "report_title"                  text,
-    "report_type"                   varchar(100),
-    "report_release_date"           date,
-    "report_version"                varchar(20),
-    "audit_type"                    varchar(100),
-    "audit_period_from"             date,
-    "audit_period_to"               date,
-    "classification"                varchar(50),
-    "document_title"                text,
-    "document_version"              varchar(20),
-    "prepared_by"                   varchar(150),
-    "reviewed_by"                   varchar(150),
-    "approved_by"                   varchar(150),
-    "released_by"                   varchar(150),
-    "release_date"                  date,
-    "project_background"            text,
-    "objective"                     text,
-    "controlled_vocabulary_ref"     text,
-    "total_findings"                integer         DEFAULT 0,
-    "sev_critical"                  integer         DEFAULT 0,
-    "sev_high"                      integer         DEFAULT 0,
-    "sev_medium"                    integer         DEFAULT 0,
-    "sev_low"                       integer         DEFAULT 0,
-    "assessment_start_date"         date,
-    "assessment_end_date"           date,
-    "scope_updated_till"            date,
-    "created_at"                    timestamptz     NOT NULL DEFAULT NOW(),
-    "updated_at"                    timestamptz     NOT NULL DEFAULT NOW(),
-    CONSTRAINT "vapt_reports_pkey"           PRIMARY KEY ("report_id"),
-    CONSTRAINT "vapt_reports_report_id_fkey" FOREIGN KEY (report_id) REFERENCES reports(report_id) ON DELETE CASCADE
-);
 
-CREATE TABLE IF NOT EXISTS "public"."vapt_change_history" (
-    "id"        uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id" uuid        NOT NULL,
-    "version"   varchar(20),
-    "date"      date,
-    "remarks"   text,
-    CONSTRAINT "vapt_change_history_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_change_history_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_distribution_list" (
-    "id"            uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"     uuid        NOT NULL,
-    "name"          varchar(150),
-    "organization"  varchar(150),
-    "designation"   varchar(150),
-    "email"         varchar(150),
-    CONSTRAINT "vapt_distribution_list_pkey"   PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_distribution_list_rep_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_assumptions" (
-    "id"            uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"     uuid        NOT NULL,
-    "sort_order"    integer,
-    "assumption"    text,
-    CONSTRAINT "vapt_assumptions_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_assumptions_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_assets" (
-    "id"                 uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"          uuid        NOT NULL,
-    "sr_no"              integer,
-    "asset_description"  text,
-    "url"                text,
-    "criticality"        varchar(20),
-    "internal_ip"        inet,
-    "public_ip"          inet,
-    "in_scope_functions" text,
-    CONSTRAINT "vapt_assets_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_assets_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_exclusions" (
-    "id"            uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"     uuid        NOT NULL,
-    "sort_order"    integer,
-    "exclusion"     text,
-    CONSTRAINT "vapt_exclusions_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_exclusions_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_testing_credentials" (
-    "id"        uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id" uuid        NOT NULL,
-    "role"      varchar(100),
-    "username"  varchar(150),
-    "auth_type" varchar(100),
-    "purpose"   text,
-    CONSTRAINT "vapt_testing_credentials_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_testing_credentials_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_auditing_team" (
-    "id"             uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"      uuid        NOT NULL,
-    "user_id"        uuid,
-    "sr_no"          integer,
-    "name"           varchar(150),
-    "designation"    varchar(150),
-    "email"          varchar(150),
-    "certifications" varchar(255),
-    "cert_in_listed" boolean,
-    CONSTRAINT "vapt_auditing_team_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_auditing_team_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE,
-    CONSTRAINT "vapt_auditing_team_user_fk"   FOREIGN KEY (user_id)   REFERENCES users(user_id)          ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_audit_activities" (
-    "id"         uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"  uuid        NOT NULL,
-    "date_label" varchar(100),
-    "activity"   text,
-    "outcome"    text,
-    CONSTRAINT "vapt_audit_activities_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_audit_activities_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_standards" (
-    "id"         uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"  uuid        NOT NULL,
-    "sort_order" integer,
-    "standard"   text,
-    CONSTRAINT "vapt_standards_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_standards_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_methodology_phases" (
-    "id"          uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"   uuid        NOT NULL,
-    "phase"       varchar(50),
-    "description" text,
-    CONSTRAINT "vapt_methodology_phases_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_methodology_phases_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_tools" (
-    "id"           uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"    uuid        NOT NULL,
-    "sr_no"        integer,
-    "tool_name"    varchar(150),
-    "version"      varchar(50),
-    "license_type" varchar(50),
-    CONSTRAINT "vapt_tools_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_tools_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_findings" (
-    "id"                      uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"               uuid        NOT NULL,
-    "finding_id"              varchar(20) NOT NULL,
-    "title"                   text,
-    "severity"                varchar(20),
-    "status"                  varchar(30),
-    "new_or_repeat"           varchar(20),
-    "cvss_score"              numeric(4,1),
-    "cvss_vector"             varchar(100),
-    "observation_description" text,
-    "preconditions"           text,
-    "impact"                  text,
-    "likely_root_cause"       text,
-    "recommendation"          text,
-    "reference"               text,
-    "retest_date"             date,
-    "closure_evidence"        text,
-    CONSTRAINT "vapt_findings_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_findings_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE,
-    CONSTRAINT "vapt_findings_unique"    UNIQUE (report_id, finding_id)
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_finding_cwes" (
-    "id"         uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"  uuid        NOT NULL,
-    "finding_id" varchar(20) NOT NULL,
-    "cwe"        varchar(30),
-    CONSTRAINT "vapt_finding_cwes_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_finding_cwes_fk"   FOREIGN KEY (report_id, finding_id)
-                                        REFERENCES vapt_findings(report_id, finding_id)
-                                        ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_finding_assets" (
-    "id"         uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"  uuid        NOT NULL,
-    "finding_id" varchar(20) NOT NULL,
-    "asset_url"  text,
-    CONSTRAINT "vapt_finding_assets_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_finding_assets_fk"   FOREIGN KEY (report_id, finding_id)
-                                          REFERENCES vapt_findings(report_id, finding_id)
-                                          ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_poc_steps" (
-    "id"         uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"  uuid        NOT NULL,
-    "finding_id" varchar(20) NOT NULL,
-    "step_order" integer     NOT NULL,
-    "step_text"  text,
-    CONSTRAINT "vapt_poc_steps_pkey" PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_poc_steps_fk"   FOREIGN KEY (report_id, finding_id)
-                                     REFERENCES vapt_findings(report_id, finding_id)
-                                     ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_risk_ratings" (
-    "id"          uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"   uuid        NOT NULL,
-    "rating"      varchar(20),
-    "description" text,
-    CONSTRAINT "vapt_risk_ratings_pkey"       PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_risk_ratings_report_fk"  FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_remediation_roadmap" (
-    "id"        uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "report_id" uuid        NOT NULL,
-    "window"    varchar(50),
-    "action"    text,
-    CONSTRAINT "vapt_remediation_roadmap_pkey"      PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_remediation_roadmap_report_fk" FOREIGN KEY (report_id) REFERENCES vapt_reports(report_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS "public"."vapt_roadmap_findings" (
-    "id"             uuid        NOT NULL DEFAULT gen_random_uuid(),
-    "remediation_id" uuid        NOT NULL,
-    "finding_id"     varchar(20),
-    CONSTRAINT "vapt_roadmap_findings_pkey"   PRIMARY KEY ("id"),
-    CONSTRAINT "vapt_roadmap_findings_rem_fk" FOREIGN KEY (remediation_id)
-                                              REFERENCES vapt_remediation_roadmap(id)
-                                              ON DELETE CASCADE
-);
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -442,38 +206,70 @@ CREATE TABLE IF NOT EXISTS "public"."reports_data" (
 CREATE INDEX IF NOT EXISTS "idx_reports_report_date" ON "public"."reports_data" ("report_date");
 CREATE INDEX IF NOT EXISTS "idx_reports_data_gin"    ON "public"."reports_data" USING GIN ("data");
 
-CREATE TABLE IF NOT EXISTS "public"."vulnerabilities" (
-    "vuln_id"               uuid            NOT NULL DEFAULT gen_random_uuid(),
-    "report_id"             uuid            NOT NULL,
-    "vuln_seq_id"           smallint,
-    "vulnerability_title"   text            NOT NULL,
-    "category"              text,
-    "severity"              severity_level,
-    "cvss_score"            numeric(3,1)    CHECK (cvss_score BETWEEN 0.0 AND 10.0),
-    "cve_ids"               text[],
-    "cwe_ids"               text[],
-    "affected_assets"       text[],
-    "status"                vuln_status,
-    "new_or_repeat"         text,
-    "revalidation_status"   text,
-    "detailed_observation"  text,
-    "description"           text,
-    "impact"                text,
-    "recommendation"        text,
-    "proof_of_concept"      text,
-    "reproduction_steps"    text,
-    "reference"             text,
-    "meta"                  jsonb,
-    "created_at"            timestamptz     NOT NULL DEFAULT now(),
-    "updated_at"            timestamptz     NOT NULL DEFAULT now(),
-    CONSTRAINT "vulnerabilities_pkey"      PRIMARY KEY ("vuln_id"),
-    CONSTRAINT "vulnerabilities_report_fk" FOREIGN KEY (report_id) REFERENCES reports(report_id) ON DELETE CASCADE
+DO $$ BEGIN
+    CREATE TYPE observation_status AS ENUM ('Open', 'Closed', 'Partially Remediated');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE observation_severity AS ENUM ('Critical', 'High', 'Medium', 'Low');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE observation_impact AS ENUM ('Major', 'Moderate', 'Minor');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE observation_likelihood AS ENUM ('Easy', 'Moderate', 'Hard');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+    CREATE TYPE observation_new_repeat AS ENUM ('New', 'Repeat');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS "public"."detailed_observations" (
+    "finding_id"                uuid                    NOT NULL DEFAULT gen_random_uuid(),
+    "report_id"                 uuid                    NOT NULL,
+    "title"                     text,
+    "status"                    observation_status,
+    "severity"                  observation_severity,
+    "impact_level"              observation_impact,
+    "likelihood_level"          observation_likelihood,
+    "cve_id"                    text[],         
+    "cvss_score"                numeric(4,1),
+    "cvss_vector"               text,
+    "severity_rationale"        text,
+    "reported_epss_score"       numeric(5,4),   
+    "observation_date"          date,           
+    "cwe"                       text[],         
+    "affected_asset"            text[],         
+    "regulatory_references"     text[],         
+    "observation_description"   text,
+    "preconditions"             text,
+    "proof_of_concept"          jsonb,          
+    "impact"                    text,
+    "likely_root_cause"         text,
+    "recommendation"            text,
+    "reference"                 text,
+    "new_or_repeat"             observation_new_repeat, 
+    "meta"                      jsonb,
+    "created_at"                timestamptz             NOT NULL DEFAULT now(),
+    "updated_at"                timestamptz             NOT NULL DEFAULT now(),
+
+    CONSTRAINT "detailed_observations_pkey"      PRIMARY KEY ("finding_id"),
+    CONSTRAINT "detailed_observations_report_fk" FOREIGN KEY (report_id) REFERENCES reports(report_id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS "idx_vulns_report_id"    ON "public"."vulnerabilities" ("report_id");
-CREATE INDEX IF NOT EXISTS "idx_vulns_severity"     ON "public"."vulnerabilities" ("severity");
-CREATE INDEX IF NOT EXISTS "idx_vulns_status"       ON "public"."vulnerabilities" ("status");
-CREATE INDEX IF NOT EXISTS "idx_vulns_cve_ids"      ON "public"."vulnerabilities" USING GIN ("cve_ids");
-CREATE INDEX IF NOT EXISTS "idx_vulns_cwe_ids"      ON "public"."vulnerabilities" USING GIN ("cwe_ids");
-CREATE INDEX IF NOT EXISTS "idx_vulns_assets"       ON "public"."vulnerabilities" USING GIN ("affected_assets");
-CREATE INDEX IF NOT EXISTS "idx_vulns_meta_gin"     ON "public"."vulnerabilities" USING GIN ("meta");
+CREATE INDEX IF NOT EXISTS "idx_obs_report_id" ON "public"."detailed_observations" ("report_id");
+CREATE INDEX IF NOT EXISTS "idx_obs_severity"  ON "public"."detailed_observations" ("severity");
+CREATE INDEX IF NOT EXISTS "idx_obs_status"    ON "public"."detailed_observations" ("status");
+CREATE INDEX IF NOT EXISTS "idx_obs_meta_gin"  ON "public"."detailed_observations" USING GIN ("meta");

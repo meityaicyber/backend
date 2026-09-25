@@ -872,7 +872,7 @@ const columns = [
             }}
           >
             {tableVulns && tableVulns.length > 0 ? (
-              <Box sx={{ height: '100%', width: '100%', minHeight: 0, flex: 1, overflow: 'hidden' }}>
+              <Box sx={{ height: 400, width: '100%', minHeight: 400, flex: 1, overflow: 'hidden' }}>
                 <DataGrid
                   rows={tableVulns}
                   columns={columns}
@@ -884,7 +884,7 @@ const columns = [
                 />
               </Box>
             ) : (
-              <EmptyState message="No vulnerabilities match the current filters" />
+              <EmptyState message="No detailed observations match the current filters" />
             )}
           </ChartCard>
       );
@@ -1040,7 +1040,7 @@ const columns = [
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <KpiCard
             title="Total Vulns"
-            value={summary?.total_vulnerabilities ?? 0}
+            value={summary?.total_detailed_observations ?? 0}
             icon={<BugReport />}
             color="#00D4FF"
             delay={0}
@@ -1049,7 +1049,7 @@ const columns = [
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <KpiCard
             title="Open"
-            value={summary?.open_vulnerabilities ?? 0}
+            value={summary?.open_detailed_observations ?? 0}
             icon={<ErrorOutline />}
             color="#FF1744"
             delay={60}
@@ -1058,7 +1058,7 @@ const columns = [
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <KpiCard
             title="Closed"
-            value={summary?.closed_vulnerabilities ?? 0}
+            value={summary?.closed_detailed_observations ?? 0}
             icon={<CheckCircleOutline />}
             color="#00E676"
             delay={120}
@@ -1085,7 +1085,7 @@ const columns = [
         <Grid item xs={12} sm={6} md={4} lg={2}>
           <KpiCard
             title="Reports Analyzed"
-            value={summary?.reports_with_vulns ?? 0}
+            value={summary?.reports_with_detailed_observations ?? 0}
             icon={<Assessment />}
             color="#7C4DFF"
             delay={300}
@@ -1233,7 +1233,7 @@ const columns = [
             </ResponsiveContainer>
           )}
           {expandedWidget === 'table' && (
-            <Box sx={{ height: '100%', width: '100%', 
+            <Box sx={{ height: 600, width: '100%', 
               '& .MuiDataGrid-root': { border: 'none', color: 'text.primary' },
               '& .MuiDataGrid-cell': { borderBottom: '1px solid rgba(255,255,255,0.05)' },
               '& .MuiDataGrid-columnHeaders': { backgroundColor: 'rgba(17, 24, 39, 0.4)', borderBottom: '1px solid rgba(255,255,255,0.1)' },

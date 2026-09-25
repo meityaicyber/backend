@@ -82,7 +82,7 @@ async def get_cvss_distribution(
     return CvssDistribution(data=[CvssBucket(**i) for i in items])
 
 
-@router.get("/category-breakdown", response_model=CategoryBreakdown)
+@router.get("/impact_level-breakdown", response_model=CategoryBreakdown)
 async def get_category_breakdown(
     agency_id: Optional[UUID] = None,
     report_id: Optional[UUID] = None,
@@ -177,13 +177,13 @@ async def get_all_vulnerabilities_raw(
     db: AsyncSession = Depends(get_db),
 ):
     from sqlalchemy import select, func
-    from app.models.report import Vulnerability, Report, SeverityLevel, VulnStatus
+    from app.models.report import DetailedObservation, Report, ObservationSeverity, ObservationStatus
     from datetime import datetime, timedelta, timezone
 
-    query = select(Vulnerability, Report.agency_id).join(Report, Vulnerability.report_id == Report.report_id)
+    query = select(DetailedObservation, Report.agency_id).join(Report, DetailedObservation.report_id == Report.report_id)
     
     if report_id:
-        query = query.where(Vulnerability.report_id == report_id)
+        query = query.where(DetailedObservation.report_id == report_id)
     if agency_id:
         query = query.where(Report.agency_id == agency_id)
         
@@ -194,13 +194,13 @@ async def get_all_vulnerabilities_raw(
         elif time_range == '1_YEAR': days = 365
         if days > 0:
             threshold = datetime.now(timezone.utc) - timedelta(days=days)
-            query = query.where(Vulnerability.created_at >= threshold)
+            query = query.where(DetailedObservation.created_at >= threshold)
             
     if severities:
-        query = query.where(Vulnerability.severity.in_([SeverityLevel(s) for s in severities]))
+        query = query.where(DetailedObservation.severity.in_([ObservationSeverity(s) for s in severities]))
         
     if statuses:
-        query = query.where(Vulnerability.status.in_([VulnStatus(s) for s in statuses]))
+        query = query.where(DetailedObservation.status.in_([ObservationStatus(s) for s in statuses]))
         
     # Get total count for pagination
     count_query = select(func.count()).select_from(query.subquery())
@@ -208,7 +208,7 @@ async def get_all_vulnerabilities_raw(
     total = total_result.scalar() or 0
         
     # Apply pagination and sorting
-    query = query.order_by(Vulnerability.created_at.desc()).offset((page - 1) * limit).limit(limit)
+    query = query.order_by(DetailedObservation.created_at.desc()).offset((page - 1) * limit).limit(limit)
         
     result = await db.execute(query)
     rows = result.all()
@@ -216,16 +216,16 @@ async def get_all_vulnerabilities_raw(
     data = []
     for vuln, ag_id in rows:
         data.append({
-            "id": str(vuln.vuln_id),
-            "title": vuln.vulnerability_title,
+            "id": str(vuln.finding_id),
+            "title": vuln.title,
             "severity": vuln.severity.value if vuln.severity else None,
             "status": vuln.status.value if vuln.status else None,
             "cvss": float(vuln.cvss_score) if vuln.cvss_score is not None else None,
             "date": vuln.created_at.isoformat(),
-            "category": vuln.category,
-            "cwe": vuln.cwe_ids[0] if vuln.cwe_ids and len(vuln.cwe_ids) > 0 else None,
-            "cve": vuln.cve_ids[0] if vuln.cve_ids and len(vuln.cve_ids) > 0 else None,
-            "asset": vuln.affected_assets[0] if vuln.affected_assets and len(vuln.affected_assets) > 0 else None,
+            "impact_level": vuln.impact_level,
+            "cwe": vuln.cwe[0] if vuln.cwe and len(vuln.cwe) > 0 else None,
+            "cve": vuln.cve_id[0] if vuln.cve_id and len(vuln.cve_id) > 0 else None,
+            "asset": vuln.affected_asset[0] if vuln.affected_asset and len(vuln.affected_asset) > 0 else None,
             "new_or_repeat": vuln.new_or_repeat,
             "reportId": str(vuln.report_id),
             "agencyId": str(ag_id) if ag_id else None
@@ -246,18 +246,18 @@ async def get_dashboard_aggregates(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch all dashboard analytics in a single highly-optimized payload."""
-    results = await asyncio.gather(
-        analytics_service.get_summary(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_severity_distribution(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_status_distribution(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_cvss_distribution(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_trend(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_category_breakdown(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_top_cwe(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_top_cve(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_affected_assets(db, agency_id, report_id, time_range, severities, statuses),
-        analytics_service.get_new_vs_repeat(db, agency_id, report_id, time_range, severities, statuses)
-    )
+    summary = await analytics_service.get_summary(db, agency_id, report_id, time_range, severities, statuses)
+    severity_dist = await analytics_service.get_severity_distribution(db, agency_id, report_id, time_range, severities, statuses)
+    status_dist = await analytics_service.get_status_distribution(db, agency_id, report_id, time_range, severities, statuses)
+    cvss_dist = await analytics_service.get_cvss_distribution(db, agency_id, report_id, time_range, severities, statuses)
+    trend = await analytics_service.get_trend(db, agency_id, report_id, time_range, severities, statuses)
+    categories = await analytics_service.get_category_breakdown(db, agency_id, report_id, time_range, severities, statuses)
+    top_cwe = await analytics_service.get_top_cwe(db, agency_id, report_id, time_range, severities, statuses)
+    top_cve = await analytics_service.get_top_cve(db, agency_id, report_id, time_range, severities, statuses)
+    affected_assets = await analytics_service.get_affected_assets(db, agency_id, report_id, time_range, severities, statuses)
+    new_vs_repeat = await analytics_service.get_new_vs_repeat(db, agency_id, report_id, time_range, severities, statuses)
+    
+    results = [summary, severity_dist, status_dist, cvss_dist, trend, categories, top_cwe, top_cve, affected_assets, new_vs_repeat]
 
     return {
         "summary": results[0],

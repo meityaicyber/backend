@@ -301,6 +301,7 @@ async def get_reports(
         selectinload(Report.report_metadata),
         selectinload(Report.validation),
         selectinload(Report.partial_duplicate),
+        selectinload(Report.storage),
     )
 
     if search:
@@ -338,6 +339,7 @@ async def get_report_by_id(
             selectinload(Report.report_metadata),
             selectinload(Report.validation),
             selectinload(Report.storage),
+            selectinload(Report.partial_duplicate),
         )
         .where(Report.report_id == report_id)
     )

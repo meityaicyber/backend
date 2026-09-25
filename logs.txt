@@ -1,0 +1,3 @@
+INFO:     172.18.0.10:59168 - "GET /api/ml/forecast?months=6 HTTP/1.1" 200 OK
+INFO:     172.18.0.10:59170 - "GET /api/ml/clusters HTTP/1.1" 500 Internal Server Error
+INFO:     172.18.0.10:59182 - "GET /api/ml/anomalies HTTP/1.1" 200 OK

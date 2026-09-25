@@ -5,16 +5,16 @@ from uuid import UUID
 
 
 class AnalyticsSummary(BaseModel):
-    total_vulnerabilities: int
-    open_vulnerabilities: int
-    closed_vulnerabilities: int
+    total_detailed_observations: int
+    open_detailed_observations: int
+    closed_detailed_observations: int
     avg_cvss_score: Optional[float] = None
     critical_count: int
     high_count: int
     medium_count: int
     low_count: int
     informational_count: int
-    reports_with_vulns: int
+    reports_with_detailed_observations: int
 
 
 class SeverityItem(BaseModel):
@@ -45,7 +45,7 @@ class CvssDistribution(BaseModel):
 
 
 class CategoryItem(BaseModel):
-    category: str
+    impact_level: str
     count: int
 
 
@@ -99,13 +99,13 @@ class NewVsRepeat(BaseModel):
 
 
 class RecentVuln(BaseModel):
-    vuln_id: UUID
+    finding_id: UUID
     report_id: UUID
-    vulnerability_title: str
+    title: str
     severity: Optional[str] = None
     status: Optional[str] = None
     cvss_score: Optional[float] = None
-    category: Optional[str] = None
+    impact_level: Optional[str] = None
     created_at: datetime
 
 

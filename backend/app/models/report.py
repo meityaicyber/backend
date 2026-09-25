@@ -76,8 +76,8 @@ class Report(Base):
         "ReportsData", back_populates="report", uselist=False, lazy="noload",
         cascade="all, delete-orphan"
     )
-    vulnerabilities = relationship(
-        "Vulnerability", back_populates="report", lazy="noload",
+    detailed_observations = relationship(
+        "DetailedObservation", back_populates="report", lazy="noload",
         cascade="all, delete-orphan"
     )
 
@@ -179,19 +179,30 @@ class PartialDuplicate(Base):
     original_report = relationship("Report", foreign_keys=[original_report_id])
 
 
-class SeverityLevel(str, enum.Enum):
-    CRITICAL = 'CRITICAL'
-    HIGH = 'HIGH'
-    MEDIUM = 'MEDIUM'
-    LOW = 'LOW'
-    INFORMATIONAL = 'INFORMATIONAL'
+class ObservationStatus(str, enum.Enum):
+    OPEN = 'Open'
+    CLOSED = 'Closed'
+    PARTIALLY_REMEDIATED = 'Partially Remediated'
 
-class VulnStatus(str, enum.Enum):
-    OPEN = 'OPEN'
-    CLOSED = 'CLOSED'
-    ACCEPTED = 'ACCEPTED'
-    RISK_ACCEPTED = 'RISK_ACCEPTED'
-    IN_PROGRESS = 'IN_PROGRESS'
+class ObservationSeverity(str, enum.Enum):
+    CRITICAL = 'Critical'
+    HIGH = 'High'
+    MEDIUM = 'Medium'
+    LOW = 'Low'
+
+class ObservationImpact(str, enum.Enum):
+    MAJOR = 'Major'
+    MODERATE = 'Moderate'
+    MINOR = 'Minor'
+
+class ObservationLikelihood(str, enum.Enum):
+    EASY = 'Easy'
+    MODERATE = 'Moderate'
+    HARD = 'Hard'
+
+class ObservationNewRepeat(str, enum.Enum):
+    NEW = 'New'
+    REPEAT = 'Repeat'
 
 class ReportsData(Base):
     __tablename__ = "reports_data"
@@ -216,42 +227,55 @@ class ReportsData(Base):
 
     report = relationship("Report", back_populates="report_data")
 
-class Vulnerability(Base):
-    __tablename__ = "vulnerabilities"
+class DetailedObservation(Base):
+    __tablename__ = "detailed_observations"
 
-    vuln_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    finding_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     report_id = Column(
         UUID(as_uuid=True),
         ForeignKey("reports.report_id", ondelete="CASCADE"),
         nullable=False,
         index=True
     )
-    vuln_seq_id = Column(SmallInteger, nullable=True)
-    vulnerability_title = Column(Text, nullable=False)
-    category = Column(Text, nullable=True)
-    severity = Column(
-        Enum(SeverityLevel, name="severity_level", create_constraint=True),
-        nullable=True,
-        index=True
-    )
-    cvss_score = Column(Numeric(3, 1), nullable=True)
-    cve_ids = Column(ARRAY(Text), nullable=True)
-    cwe_ids = Column(ARRAY(Text), nullable=True)
-    affected_assets = Column(ARRAY(Text), nullable=True)
+    title = Column(Text, nullable=True)
     status = Column(
-        Enum(VulnStatus, name="vuln_status", create_constraint=True),
+        Enum(ObservationStatus, name="observation_status", create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
         nullable=True,
         index=True
     )
-    new_or_repeat = Column(Text, nullable=True)
-    revalidation_status = Column(Text, nullable=True)
-    detailed_observation = Column(Text, nullable=True)
-    description = Column(Text, nullable=True)
+    severity = Column(
+        Enum(ObservationSeverity, name="observation_severity", create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True,
+        index=True
+    )
+    impact_level = Column(
+        Enum(ObservationImpact, name="observation_impact", create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True
+    )
+    likelihood_level = Column(
+        Enum(ObservationLikelihood, name="observation_likelihood", create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True
+    )
+    cve_id = Column(ARRAY(Text), nullable=True)
+    cvss_score = Column(Numeric(4, 1), nullable=True)
+    cvss_vector = Column(Text, nullable=True)
+    severity_rationale = Column(Text, nullable=True)
+    reported_epss_score = Column(Numeric(5, 4), nullable=True)
+    observation_date = Column(Date, nullable=True)
+    cwe = Column(ARRAY(Text), nullable=True)
+    affected_asset = Column(ARRAY(Text), nullable=True)
+    regulatory_references = Column(ARRAY(Text), nullable=True)
+    observation_description = Column(Text, nullable=True)
+    preconditions = Column(Text, nullable=True)
+    proof_of_concept = Column(JSONB, nullable=True)
     impact = Column(Text, nullable=True)
+    likely_root_cause = Column(Text, nullable=True)
     recommendation = Column(Text, nullable=True)
-    proof_of_concept = Column(Text, nullable=True)
-    reproduction_steps = Column(Text, nullable=True)
     reference = Column(Text, nullable=True)
+    new_or_repeat = Column(
+        Enum(ObservationNewRepeat, name="observation_new_repeat", create_constraint=True, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=True
+    )
     meta_data = Column("meta", JSONB, nullable=True)
     created_at = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
@@ -263,5 +287,4 @@ class Vulnerability(Base):
         nullable=False,
     )
 
-    report = relationship("Report", back_populates="vulnerabilities")
-
+    report = relationship("Report", back_populates="detailed_observations")
