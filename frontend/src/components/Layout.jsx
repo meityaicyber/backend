@@ -41,7 +41,8 @@ const navItems = [
   { text: 'Dashboard', icon: <Dashboard />, path: '/dashboard' },
   { text: 'Analytics', icon: <Analytics />, path: '/analytics' },
   { text: 'AI Risk Analytics', icon: <Assessment />, path: '/ml-analytics' },
-  { text: 'Upload Report', icon: <CloudUpload />, path: '/upload' },
+
+  { text: 'Bulk Upload', icon: <CloudUpload />, path: '/bulk-upload', adminOnly: true },
   { text: 'Reports', icon: <Description />, path: '/reports' },
   { text: 'User Management', icon: <People />, path: '/users', adminOnly: true },
   { text: 'Agency Management', icon: <Business />, path: '/agencies', adminOnly: true },

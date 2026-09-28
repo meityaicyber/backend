@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # AI Pipeline Service
     AI_PIPELINE_URL: str = "http://ai-pipeline:8001"
 
+    # Bulk Uploads
+    BULK_UPLOAD_CONCURRENCY: int = 5
+    BULK_UPLOAD_TEMP_DIR: str = "/tmp/bulk_uploads"
+
     # Admin defaults
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "Admin@123"
@@ -41,6 +45,7 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "case_sensitive": True,
+        "extra": "ignore",
     }
 
 

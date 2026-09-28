@@ -327,3 +327,28 @@ async def get_recent_vulns(db: AsyncSession, agency_id: Optional[UUID] = None, r
         }
         for v in vulns
     ]
+
+
+async def get_all_vulnerabilities(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None) -> list:
+    query = select(Vulnerability, Report.agency_id).join(Report, Vulnerability.report_id == Report.report_id)
+    query = apply_orm_filters(query, agency_id, report_id)
+    result = await db.execute(query)
+    rows = result.all()
+    return [
+        {
+            "id": str(v.Vulnerability.vuln_id),
+            "title": v.Vulnerability.vulnerability_title,
+            "severity": v.Vulnerability.severity.value if v.Vulnerability.severity else None,
+            "status": v.Vulnerability.status.value if v.Vulnerability.status else None,
+            "cvss": float(v.Vulnerability.cvss_score) if v.Vulnerability.cvss_score is not None else None,
+            "date": v.Vulnerability.created_at.isoformat(),
+            "category": v.Vulnerability.category,
+            "cwe": v.Vulnerability.cwe_ids[0] if v.Vulnerability.cwe_ids else None,
+            "cve": v.Vulnerability.cve_ids[0] if v.Vulnerability.cve_ids else None,
+            "asset": v.Vulnerability.affected_assets[0] if v.Vulnerability.affected_assets else None,
+            "new_or_repeat": v.Vulnerability.new_or_repeat,
+            "agencyId": str(v.agency_id) if v.agency_id else None,
+            "fileId": str(v.Vulnerability.report_id),
+        }
+        for v in rows
+    ]

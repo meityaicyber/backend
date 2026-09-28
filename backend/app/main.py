@@ -8,10 +8,11 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.routers import auth, users, reports, audit_logs, agencies, pipeline, analytics, ml_analytics
+from app.routers import bulk_upload as bulk_upload_router
 from app.services.auth_service import seed_roles_and_admin
 
 # Import all models so Alembic can discover them
-from app.models import user, report, audit  # noqa: F401
+from app.models import user, report, audit, agency, bulk_upload  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,8 +28,16 @@ async def lifespan(app: FastAPI):
             logger.info("Database seeded successfully")
     except Exception as e:
         logger.error(f"Failed to seed database: {e}")
+        
+    # Start Bulk Upload Workers
+    from app.services.bulk_worker import bulk_worker_manager
+    await bulk_worker_manager.start_workers()
+    
     yield
     logger.info("Shutting down application...")
+    
+    # Stop Bulk Upload Workers
+    await bulk_worker_manager.stop_workers()
 
 
 app = FastAPI(
@@ -56,6 +65,7 @@ app.include_router(agencies.router)
 app.include_router(pipeline.router)
 app.include_router(analytics.router)
 app.include_router(ml_analytics.router)
+app.include_router(bulk_upload_router.router)
 
 
 @app.exception_handler(Exception)

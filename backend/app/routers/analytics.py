@@ -164,3 +164,17 @@ async def get_recent_vulns(
     """Get latest 10 vulnerabilities."""
     items = await analytics_service.get_recent_vulns(db, agency_id, report_id)
     return RecentVulns(data=[RecentVuln(**i) for i in items])
+
+
+from app.schemas.analytics import VulnerabilityList, VulnerabilityItem
+
+@router.get("/vulnerabilities", response_model=VulnerabilityList)
+async def get_all_vulnerabilities(
+    agency_id: Optional[UUID] = None,
+    report_id: Optional[UUID] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all vulnerabilities for frontend filtering."""
+    items = await analytics_service.get_all_vulnerabilities(db, agency_id, report_id)
+    return VulnerabilityList(data=[VulnerabilityItem(**i) for i in items])

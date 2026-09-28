@@ -111,3 +111,22 @@ class RecentVuln(BaseModel):
 
 class RecentVulns(BaseModel):
     data: List[RecentVuln]
+
+
+class VulnerabilityItem(BaseModel):
+    id: str
+    title: str
+    severity: Optional[str] = None
+    status: Optional[str] = None
+    cvss: Optional[float] = None
+    date: str
+    category: Optional[str] = None
+    cwe: Optional[str] = None
+    cve: Optional[str] = None
+    asset: Optional[str] = None
+    new_or_repeat: Optional[str] = None
+    agencyId: Optional[str] = None
+    fileId: Optional[str] = None
+
+class VulnerabilityList(BaseModel):
+    data: List[VulnerabilityItem]

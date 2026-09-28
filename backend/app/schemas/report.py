@@ -71,6 +71,7 @@ class ReportOut(BaseModel):
     partial_duplicate: Optional[PartialDuplicateOut] = None
     storage: Optional[FileStorageOut] = None
     agency: Optional[AgencyOut] = None
+    has_pipeline_results: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -97,6 +98,7 @@ class ReportOut(BaseModel):
             partial_duplicate=report.partial_duplicate,
             storage=report.storage,
             agency=report.agency,
+            has_pipeline_results=bool(report.report_data)
         )
 
 

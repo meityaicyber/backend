@@ -57,7 +57,7 @@ import {
   Area,
   Legend,
 } from 'recharts';
-import { agencies, files } from '../data/seedData';
+import api from '../api/axios';
 
 /* ─────────────────────── Color Palettes ─────────────────────── */
 const SEVERITY_COLORS = {
@@ -298,6 +298,9 @@ export default function AnalyticsDashboardPage() {
   const [timeRange, setTimeRange] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [chartFilter, setChartFilter] = useState({ key: null, value: null });
+  const [agencies, setAgencies] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [allVulnerabilities, setAllVulnerabilities] = useState([]);
 
   const handleChartClick = (key, value) => {
     if (chartFilter.key === key && chartFilter.value === value) {
@@ -344,8 +347,30 @@ export default function AnalyticsDashboardPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [agenciesRes, reportsRes, vulnsRes] = await Promise.all([
+          api.get('/api/agencies'),
+          api.get('/api/reports'),
+          api.get('/api/analytics/vulnerabilities')
+        ]);
+        
+        setAgencies((agenciesRes.data.agencies || []).map(a => ({ id: a.agency_id, name: a.agency_name })));
+        setFiles((reportsRes.data.reports || []).map(r => ({
+          id: r.report_id,
+          name: r.original_filename,
+          agencyId: r.agency?.agency_id,
+          date: r.created_at
+        })));
+        setAllVulnerabilities(vulnsRes.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch analytics data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -355,13 +380,11 @@ export default function AnalyticsDashboardPage() {
   const filteredVulnerabilities = useMemo(() => {
     let vulns = [];
     if (viewMode === 'GLOBAL') {
-      files.forEach(f => { vulns = vulns.concat(f.vulnerabilities); });
+      vulns = allVulnerabilities;
     } else if (viewMode === 'AGENCY') {
-      const agencyFiles = files.filter(f => f.agencyId === selectedAgencyId);
-      agencyFiles.forEach(f => { vulns = vulns.concat(f.vulnerabilities); });
+      vulns = allVulnerabilities.filter(v => v.agencyId === selectedAgencyId);
     } else if (viewMode === 'FILE') {
-      const file = files.find(f => f.id === selectedFileId);
-      if (file) vulns = file.vulnerabilities;
+      vulns = allVulnerabilities.filter(v => v.fileId === selectedFileId);
     }
 
     const now = new Date();
@@ -371,8 +394,8 @@ export default function AnalyticsDashboardPage() {
       if (timeRange === '30_DAYS') days = 30;
       else if (timeRange === '6_MONTHS') days = 180;
       else if (timeRange === '1_YEAR') days = 365;
-      const thresholdDate = new Date(now.getTime() - days * msPerDay);
-      vulns = vulns.filter(v => new Date(v.date) >= thresholdDate);
+      const thresholdDate = new Date(now.getTime() - days * msPerDay).toISOString();
+      vulns = vulns.filter(v => v.date >= thresholdDate);
     }
 
     if (selectedSeverities.length > 0) {
@@ -383,7 +406,7 @@ export default function AnalyticsDashboardPage() {
     }
 
     return vulns;
-  }, [viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses]);
+  }, [allVulnerabilities, viewMode, selectedAgencyId, selectedFileId, timeRange, selectedSeverities, selectedStatuses]);
 
   const aggregatedData = useMemo(() => {
     const total = filteredVulnerabilities.length;
@@ -470,7 +493,7 @@ export default function AnalyticsDashboardPage() {
       assets,
       newRepeat
     };
-  }, [filteredVulnerabilities, viewMode, selectedAgencyId, selectedFileId]);
+  }, [filteredVulnerabilities, files, viewMode, selectedAgencyId, selectedFileId]);
 
   const { summary, severityDist, statusDist, cvssDist, trend, categories, topCwe, topCve, assets, newRepeat } = aggregatedData;
 
@@ -479,7 +502,7 @@ export default function AnalyticsDashboardPage() {
     if (chartFilter.key && chartFilter.value) {
       vulns = vulns.filter(v => v[chartFilter.key] === chartFilter.value);
     }
-    return vulns.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return vulns.sort((a, b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
   }, [filteredVulnerabilities, chartFilter]);
 
   const columns = [
@@ -1098,140 +1121,7 @@ export default function AnalyticsDashboardPage() {
         </Grid>
       </Grid>
 
-      {/* ═══════ ROW 6 — AI Module 1 (Standalone) ═══════ */}
-      <AISeverityPredictor />
     </Box>
-  );
-}
-
-/* ─────────────────── AI Severity Predictor (Standalone Module) ─────────────────── */
-function AISeverityPredictor() {
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState(null);
-  const [error, setError] = useState(null);
-
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      setError(null);
-    }
-  };
-
-  const handlePredict = async () => {
-    if (!file) {
-      setError('Please select a CSV file first.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setResults(null);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/ml/predict-severity', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.detail || data.message || 'Failed to predict severity.');
-      }
-      
-      setResults(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card sx={{ mt: 4, mb: 4, background: 'rgba(17, 24, 39, 0.4)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <Shield sx={{ color: '#E040FB', fontSize: 28 }} />
-          <Typography variant="h5" sx={{ fontWeight: 800, color: '#E040FB' }}>
-            AI Module: Severity Predictor
-          </Typography>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Upload a CSV file containing vulnerability data to automatically classify and predict severity levels using our trained Random Forest model. This module operates completely independently of the global analytics above.
-        </Typography>
-        
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3, flexWrap: 'wrap' }}>
-          <Button variant="outlined" component="label" sx={{ color: 'text.primary', borderColor: 'rgba(255,255,255,0.2)' }}>
-            Choose CSV File
-            <input type="file" accept=".csv" hidden onChange={handleFileChange} />
-          </Button>
-          <Typography variant="body2" sx={{ color: file ? '#00E676' : 'text.secondary', fontWeight: 600 }}>
-            {file ? file.name : 'No file selected'}
-          </Typography>
-          <Button 
-            variant="contained" 
-            onClick={handlePredict} 
-            disabled={!file || loading}
-            sx={{ 
-              bgcolor: '#E040FB', 
-              color: '#fff', 
-              fontWeight: 700, 
-              '&:hover': { bgcolor: '#D500F9' },
-              '&.Mui-disabled': { bgcolor: 'rgba(224, 64, 251, 0.3)', color: 'rgba(255,255,255,0.5)' }
-            }}
-          >
-            {loading ? 'Analyzing Data...' : 'Run AI Analysis'}
-          </Button>
-        </Box>
-
-        {error && (
-          <Typography variant="body2" sx={{ mb: 2, p: 1.5, bgcolor: 'rgba(255, 23, 68, 0.1)', color: '#FF1744', borderRadius: 1, border: '1px solid rgba(255, 23, 68, 0.3)' }}>
-            {error}
-          </Typography>
-        )}
-
-        {results && results.data && (
-          <Box sx={{ mt: 3, animation: 'fadeIn 0.5s ease-in-out' }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-              Prediction Results <Chip label={`${results.total_records} records`} size="small" sx={{ ml: 1, bgcolor: 'rgba(224, 64, 251, 0.2)', color: '#E040FB' }} />
-            </Typography>
-            <TableContainer sx={{ maxHeight: 400, bgcolor: 'rgba(0,0,0,0.2)', borderRadius: 2, border: '1px solid rgba(255,255,255,0.05)' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ bgcolor: '#0A0E17', fontWeight: 700, color: 'text.secondary' }}>Row #</TableCell>
-                    <TableCell sx={{ bgcolor: '#0A0E17', fontWeight: 700, color: 'text.secondary' }}>Vulnerability Category</TableCell>
-                    <TableCell sx={{ bgcolor: '#0A0E17', fontWeight: 700, color: 'text.secondary' }}>CVSS Score</TableCell>
-                    <TableCell sx={{ bgcolor: '#0A0E17', fontWeight: 700, color: 'text.secondary' }}>AI Predicted Severity</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {results.data.slice(0, 100).map((row, index) => (
-                    <TableRow key={index} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>{row.category || 'N/A'}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{row.cvss_score != null ? Number(row.cvss_score).toFixed(1) : 'N/A'}</TableCell>
-                      <TableCell>
-                        <SeverityBadge severity={row.predicted_severity ? String(row.predicted_severity).toUpperCase() : 'UNKNOWN'} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            {results.data.length > 100 && (
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block', fontStyle: 'italic' }}>
-                Showing the first 100 predicted results.
-              </Typography>
-            )}
-          </Box>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 

@@ -301,6 +301,7 @@ async def get_reports(
         selectinload(Report.report_metadata),
         selectinload(Report.validation),
         selectinload(Report.partial_duplicate),
+        selectinload(Report.report_data),
     )
 
     if search:

@@ -9,7 +9,7 @@ import RoleGuard from './components/RoleGuard';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import UploadReportPage from './pages/UploadReportPage';
+
 import ReportsPage from './pages/ReportsPage';
 import ReportDetailPage from './pages/ReportDetailPage';
 import UserManagementPage from './pages/UserManagementPage';
@@ -18,6 +18,7 @@ import AuditLogsPage from './pages/AuditLogsPage';
 import ProfilePage from './pages/ProfilePage';
 import AnalyticsDashboardPage from './pages/AnalyticsDashboardPage';
 import MLAnalyticsDashboardPage from './pages/MLAnalyticsDashboardPage';
+import BulkUploadPage from './pages/BulkUploadPage';
 
 function App() {
   const { loading } = useAuth();
@@ -45,7 +46,8 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/upload" element={<UploadReportPage />} />
+
+          <Route path="/bulk-upload" element={<BulkUploadPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/reports/:id" element={<ReportDetailPage />} />
           <Route path="/profile" element={<ProfilePage />} />

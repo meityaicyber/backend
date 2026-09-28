@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone, date
 
-from sqlalchemy import Column, String, DateTime, Date, Text, Boolean, CheckConstraint
+from sqlalchemy import Column, String, DateTime, Date, Text, Boolean, CheckConstraint, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -19,6 +19,9 @@ class Agency(Base):
     cert_in_empanelled = Column(Boolean, nullable=False, default=False)
     empanelment_number = Column(String(100), nullable=True)
     empanelment_expiry = Column(Date, nullable=True)
+    
+    normalized_name = Column(String(255), nullable=True, index=True)
+    aliases = Column(JSON, nullable=True)
     
     contact_person = Column(String(255), nullable=False)
     contact_email = Column(String(255), nullable=False)

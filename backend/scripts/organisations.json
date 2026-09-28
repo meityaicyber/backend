@@ -1,0 +1,127 @@
+[
+  {
+    "certin_serial_no": "1",
+    "official_name": "PricewaterhouseCoopers Pvt. Ltd.",
+    "aliases": ["PwC", "PricewaterhouseCoopers", "PWC India"]
+  },
+  {
+    "certin_serial_no": "2",
+    "official_name": "Deloitte Touche Tohmatsu India LLP",
+    "aliases": ["Deloitte", "Deloitte India", "DTTILLP"]
+  },
+  {
+    "certin_serial_no": "3",
+    "official_name": "Ernst & Young LLP",
+    "aliases": ["EY", "E&Y", "Ernst and Young"]
+  },
+  {
+    "certin_serial_no": "4",
+    "official_name": "KPMG India Pvt. Ltd.",
+    "aliases": ["KPMG", "KPMG India"]
+  },
+  {
+    "certin_serial_no": "5",
+    "official_name": "TUV SUD South Asia Pvt. Ltd.",
+    "aliases": ["TUV SUD", "TUV SUD South Asia"]
+  },
+  {
+    "certin_serial_no": "6",
+    "official_name": "BDO India LLP",
+    "aliases": ["BDO", "BDO India"]
+  },
+  {
+    "certin_serial_no": "7",
+    "official_name": "Grant Thornton Bharat LLP",
+    "aliases": ["Grant Thornton", "GT", "GT Bharat"]
+  },
+  {
+    "certin_serial_no": "8",
+    "official_name": "SISA Information Security Pvt. Ltd.",
+    "aliases": ["SISA", "SISA Information Security"]
+  },
+  {
+    "certin_serial_no": "9",
+    "official_name": "QRC Assurance And Solutions Pvt. Ltd.",
+    "aliases": ["QRC", "QRC Assurance"]
+  },
+  {
+    "certin_serial_no": "10",
+    "official_name": "CyberCX India Pvt. Ltd.",
+    "aliases": ["CyberCX"]
+  },
+  {
+    "certin_serial_no": "11",
+    "official_name": "Tata Consultancy Services Limited",
+    "aliases": ["TCS", "Tata Consultancy Services"]
+  },
+  {
+    "certin_serial_no": "12",
+    "official_name": "Wipro Limited",
+    "aliases": ["Wipro", "Wipro India"]
+  },
+  {
+    "certin_serial_no": "13",
+    "official_name": "Infosys Limited",
+    "aliases": ["Infosys"]
+  },
+  {
+    "certin_serial_no": "14",
+    "official_name": "HCL Technologies Limited",
+    "aliases": ["HCL", "HCLTech"]
+  },
+  {
+    "certin_serial_no": "15",
+    "official_name": "IBM India Pvt. Ltd.",
+    "aliases": ["IBM", "IBM India"]
+  },
+  {
+    "certin_serial_no": "16",
+    "official_name": "ControlCase International Pvt. Ltd.",
+    "aliases": ["ControlCase"]
+  },
+  {
+    "certin_serial_no": "17",
+    "official_name": "BSI Group India Pvt. Ltd.",
+    "aliases": ["BSI", "BSI Group"]
+  },
+  {
+    "certin_serial_no": "18",
+    "official_name": "Centre for Development of Advanced Computing",
+    "aliases": ["CDAC", "C-DAC"]
+  },
+  {
+    "certin_serial_no": "19",
+    "official_name": "Safe Security",
+    "aliases": ["Lucideus", "Safe Security India"]
+  },
+  {
+    "certin_serial_no": "20",
+    "official_name": "Akaike Technologies Pvt. Ltd.",
+    "aliases": ["Akaike", "Akaike Technologies"]
+  },
+  {
+    "certin_serial_no": "21",
+    "official_name": "Paladion Networks Pvt. Ltd.",
+    "aliases": ["Paladion", "Atos", "Atos India"]
+  },
+  {
+    "certin_serial_no": "22",
+    "official_name": "Data Resolve Technologies Pvt. Ltd.",
+    "aliases": ["Data Resolve"]
+  },
+  {
+    "certin_serial_no": "23",
+    "official_name": "CGI Information Systems and Management Consultants Pvt. Ltd.",
+    "aliases": ["CGI", "CGI India"]
+  },
+  {
+    "certin_serial_no": "24",
+    "official_name": "SGS India Private Limited",
+    "aliases": ["SGS", "SGS India"]
+  },
+  {
+    "certin_serial_no": "25",
+    "official_name": "Network Intelligence India Pvt. Ltd.",
+    "aliases": ["NII", "Network Intelligence"]
+  }
+]
