@@ -194,8 +194,8 @@ export default function MLAnalyticsDashboardPage() {
         draggableHandle=".MuiCardContent-root"
       >
     
-        <div key="forecast">
-          {visibleWidgets.includes("forecast") && (
+        {visibleWidgets.includes("forecast") && (
+          <div key="forecast">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -220,10 +220,10 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-          )}
-        </div>
-        <div key="clustering">
-          {visibleWidgets.includes("clustering") && (
+          </div>
+        )}
+        {visibleWidgets.includes("clustering") && (
+          <div key="clustering">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -248,10 +248,10 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-          )}
-        </div>
-        <div key="topsis">
-          {visibleWidgets.includes("topsis") && (
+          </div>
+        )}
+        {visibleWidgets.includes("topsis") && (
+          <div key="topsis">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -293,10 +293,10 @@ export default function MLAnalyticsDashboardPage() {
               </TableContainer>
             </CardContent>
           </Card>
-          )}
-        </div>
-        <div key="anomalies">
-          {visibleWidgets.includes("anomalies") && (
+          </div>
+        )}
+        {visibleWidgets.includes("anomalies") && (
+          <div key="anomalies">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -335,8 +335,8 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-          )}
-        </div>
+          </div>
+        )}
       </ResponsiveGridLayout>
     </Box>
   );

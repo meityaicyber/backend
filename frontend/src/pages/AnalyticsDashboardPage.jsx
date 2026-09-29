@@ -318,21 +318,35 @@ export default function AnalyticsDashboardPage() {
     { id: 'newRepeat', label: 'New vs Repeat Findings' },
     { id: 'dataGrid', label: 'Vulnerabilities DataGrid' },
   ];
-  const [visibleWidgets, setVisibleWidgets] = useState(allWidgets.map(w => w.id));
-  const [layouts, setLayouts] = useState({
-    lg: [
-      { i: 'severity', x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'status', x: 6, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'trend', x: 0, y: 2, w: 8, h: 2, minW: 4, minH: 2 },
-      { i: 'cvssDist', x: 8, y: 2, w: 4, h: 2, minW: 3, minH: 2 },
-      { i: 'categories', x: 0, y: 4, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'topCwe', x: 6, y: 4, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'topCve', x: 0, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'assets', x: 6, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
-      { i: 'newRepeat', x: 0, y: 8, w: 4, h: 2, minW: 3, minH: 2 },
-      { i: 'dataGrid', x: 4, y: 8, w: 8, h: 3, minW: 6, minH: 3 },
-    ]
+  const [visibleWidgets, setVisibleWidgets] = useState(() => {
+    const saved = localStorage.getItem('analyticsVisibleWidgets');
+    return saved ? JSON.parse(saved) : allWidgets.map(w => w.id);
   });
+  
+  useEffect(() => {
+    localStorage.setItem('analyticsVisibleWidgets', JSON.stringify(visibleWidgets));
+  }, [visibleWidgets]);
+  const [layouts, setLayouts] = useState(() => {
+    const saved = localStorage.getItem('analyticsLayouts');
+    return saved ? JSON.parse(saved) : {
+      lg: [
+        { i: 'severity', x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'status', x: 6, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'trend', x: 0, y: 2, w: 8, h: 2, minW: 4, minH: 2 },
+        { i: 'cvssDist', x: 8, y: 2, w: 4, h: 2, minW: 3, minH: 2 },
+        { i: 'categories', x: 0, y: 4, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'topCwe', x: 6, y: 4, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'topCve', x: 0, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'assets', x: 6, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'newRepeat', x: 0, y: 8, w: 4, h: 2, minW: 3, minH: 2 },
+        { i: 'dataGrid', x: 4, y: 8, w: 8, h: 3, minW: 6, minH: 3 },
+      ]
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('analyticsLayouts', JSON.stringify(layouts));
+  }, [layouts]);
 
 
   const handleChartClick = (key, value) => {
@@ -826,8 +840,8 @@ export default function AnalyticsDashboardPage() {
         draggableHandle=".MuiCardHeader-root, .MuiCardContent-root"
       >
         
-        <div key="severity">
-          {visibleWidgets.includes("severity") && (
+        {visibleWidgets.includes("severity") && (
+          <div key="severity">
             <ChartCard title="Severity Distribution" icon={<Shield />} delay={350}>
             {severityDist && severityDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -870,10 +884,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="status">
-          {visibleWidgets.includes("status") && (
+          </div>
+        )}
+        {visibleWidgets.includes("status") && (
+          <div key="status">
             <ChartCard title="Vulnerability Status" icon={<Layers />} delay={400}>
             {statusDist && statusDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -916,10 +930,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="trend">
-          {visibleWidgets.includes("trend") && (
+          </div>
+        )}
+        {visibleWidgets.includes("trend") && (
+          <div key="trend">
             <ChartCard title="CVSS Score Distribution" icon={<Speed />} delay={450}>
             {cvssDist && cvssDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -940,10 +954,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="cvssDist">
-          {visibleWidgets.includes("cvssDist") && (
+          </div>
+        )}
+        {visibleWidgets.includes("cvssDist") && (
+          <div key="cvssDist">
             <ChartCard title="Vulnerability Trend (12 Months)" icon={<TrendingUp />} delay={500}>
             {trend && trend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -975,10 +989,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState message="No trend data available" />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="categories">
-          {visibleWidgets.includes("categories") && (
+          </div>
+        )}
+        {visibleWidgets.includes("categories") && (
+          <div key="categories">
             <ChartCard title="Top Vulnerability Categories" icon={<Category />} delay={550}>
             {categories && categories.length > 0 ? (
               <ResponsiveContainer width="100%" height={Math.max(300, categories.length * 32)}>
@@ -1005,10 +1019,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="topCwe">
-          {visibleWidgets.includes("topCwe") && (
+          </div>
+        )}
+        {visibleWidgets.includes("topCwe") && (
+          <div key="topCwe">
             <ChartCard title="Top CWE Weaknesses" icon={<Shield />} delay={600}>
             {topCwe && topCwe.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1028,10 +1042,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="topCve">
-          {visibleWidgets.includes("topCve") && (
+          </div>
+        )}
+        {visibleWidgets.includes("topCve") && (
+          <div key="topCve">
             <ChartCard title="Top CVE IDs" icon={<GppBad />} delay={650}>
             {topCve && topCve.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1051,10 +1065,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="assets">
-          {visibleWidgets.includes("assets") && (
+          </div>
+        )}
+        {visibleWidgets.includes("assets") && (
+          <div key="assets">
             <ChartCard title="Most Affected Assets" icon={<Storage />} delay={700}>
             {assets && assets.length > 0 ? (
               <ResponsiveContainer width="100%" height={Math.max(300, assets.length * 32)}>
@@ -1081,10 +1095,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="newRepeat">
-          {visibleWidgets.includes("newRepeat") && (
+          </div>
+        )}
+        {visibleWidgets.includes("newRepeat") && (
+          <div key="newRepeat">
             <ChartCard title="New vs Repeat Findings" icon={<Repeat />} delay={750}>
             {newRepeat && newRepeat.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1119,10 +1133,10 @@ export default function AnalyticsDashboardPage() {
               <EmptyState />
             )}
           </ChartCard>
-          )}
-        </div>
-        <div key="dataGrid">
-          {visibleWidgets.includes("dataGrid") && (
+          </div>
+        )}
+        {visibleWidgets.includes("dataGrid") && (
+          <div key="dataGrid">
             <ChartCard 
             title={`Vulnerabilities ${chartFilter.value ? `(Filtered by ${chartFilter.value})` : ''}`} 
             icon={<BugReport />} 
@@ -1168,8 +1182,8 @@ export default function AnalyticsDashboardPage() {
               <EmptyState message="No vulnerabilities match the current filters" />
             )}
           </ChartCard>
-          )}
-        </div>
+          </div>
+        )}
       </ResponsiveGridLayout>
 
     </Box>
