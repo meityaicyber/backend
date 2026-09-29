@@ -659,7 +659,7 @@ function ReportsPage() {
   };
 
   const renderPipelineChip = (report) => {
-    const status = pipelineStatus[report.report_id];
+    const status = pipelineStatus[report.report_id] || (report.has_pipeline_results ? 'completed' : 'idle');
 
     if (status === 'processing') {
       return (
@@ -689,7 +689,7 @@ function ReportsPage() {
           icon={<CheckCircle sx={{ fontSize: 14 }} />}
           label="Completed"
           size="small"
-          onClick={() => openResultsDialog(report.report_id, report.original_filename)}
+          onClick={() => handleViewResults(report)}
           sx={{
             fontWeight: 600,
             fontSize: '0.7rem',
@@ -896,7 +896,7 @@ function ReportsPage() {
                               id={`run-pipeline-${report.report_id}`}
                               size="small"
                               onClick={() => openConfirmDialog(report)}
-                              disabled={pipelineStatus[report.report_id] === 'processing'}
+                              disabled={(pipelineStatus[report.report_id] || (report.has_pipeline_results ? 'completed' : 'idle')) === 'processing'}
                               sx={{
                                 color: '#AB47BC',
                                 transition: 'all 0.2s',
@@ -910,7 +910,7 @@ function ReportsPage() {
                                 },
                               }}
                             >
-                              {pipelineStatus[report.report_id] === 'processing' ? (
+                              {(pipelineStatus[report.report_id] || (report.has_pipeline_results ? 'completed' : 'idle')) === 'processing' ? (
                                 <CircularProgress size={18} sx={{ color: '#AB47BC' }} />
                               ) : (
                                 <RocketLaunch fontSize="small" />

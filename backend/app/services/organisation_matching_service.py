@@ -1,6 +1,6 @@
 import re
 import uuid
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from difflib import SequenceMatcher
 
 from sqlalchemy import select
@@ -39,77 +39,106 @@ def calculate_similarity(name1: str, name2: str) -> float:
     """Calculates a string similarity score between 0.0 and 1.0"""
     return SequenceMatcher(None, name1, name2).ratio()
 
+from rapidfuzz import process, fuzz
+
 class OrganisationMatchingService:
-    @staticmethod
+    _org_cache: List[Dict] = []
+    _is_loaded: bool = False
+
+    @classmethod
+    async def load_orgs(cls, db: AsyncSession):
+        """Loads agencies into memory."""
+        result = await db.execute(select(Agency).where(Agency.status == 'ACTIVE'))
+        orgs = result.scalars().all()
+        
+        cls._org_cache = []
+        for org in orgs:
+            norm_name = org.normalized_name or normalize_org_name(org.agency_name)
+            aliases = [normalize_org_name(a) for a in (org.aliases or [])]
+            cls._org_cache.append({
+                'agency_id': str(org.agency_id),
+                'name': org.agency_name,
+                'norm_name': norm_name,
+                'aliases': aliases
+            })
+        cls._is_loaded = True
+
+    @classmethod
     async def match_agency(
-        db: AsyncSession, extracted_name: str
+        cls, db: AsyncSession, extracted_name: str, signal_confidence: str = "HIGH"
     ) -> Tuple[Optional[uuid.UUID], str, List[dict]]:
         """
         Attempts to match the extracted ML name against the Agency master table.
-        Returns:
-            (matched_org_id, match_status, candidate_matches)
-            
-        match_status can be:
-            'MATCHED' -> score >= 0.95 or exact/alias match
-            'AGENCY_REVIEW_REQUIRED' -> score < 0.95
-            
-        candidate_matches: [{'org_id': uuid, 'name': str, 'score': float}] (top 3)
         """
+        if not cls._is_loaded:
+            await cls.load_orgs(db)
+            
         if not extracted_name:
-            return None, 'AGENCY_REVIEW_REQUIRED', []
+            return None, 'AGENCY_NOT_FOUND', []
 
         norm_extracted = normalize_org_name(extracted_name)
         if not norm_extracted:
-            return None, 'AGENCY_REVIEW_REQUIRED', []
+            return None, 'AGENCY_NOT_FOUND', []
             
-        # Fetch all active empanelled agencies
-        result = await db.execute(
-            select(Agency).where(Agency.status == 'ACTIVE')
-        )
-        all_orgs = result.scalars().all()
-        
         candidates = []
         
-        for org in all_orgs:
-            # We want to match against the agency_name or its normalized form
-            org_norm_name = org.normalized_name or normalize_org_name(org.agency_name)
-            
+        for org in cls._org_cache:
             # 1. Exact normalized match
-            if norm_extracted == org_norm_name:
+            if norm_extracted == org['norm_name']:
                 candidates.append({
-                    'agency_id': str(org.agency_id),
-                    'name': org.agency_name,
-                    'score': 1.0
+                    'agency_id': org['agency_id'],
+                    'name': org['name'],
+                    'score': 1.0,
+                    'match_method': 'NORMALIZED_EXACT'
                 })
-                continue
+                break # Exact match found
                 
             # 2. Alias match
-            alias_matched = False
-            for alias in (org.aliases or []):
-                if norm_extracted == normalize_org_name(alias):
-                    candidates.append({
-                        'agency_id': str(org.agency_id),
-                        'name': org.agency_name,
-                        'score': 1.0
-                    })
-                    alias_matched = True
-                    break
-            if alias_matched:
-                continue
+            if norm_extracted in org['aliases']:
+                candidates.append({
+                    'agency_id': org['agency_id'],
+                    'name': org['name'],
+                    'score': 1.0,
+                    'match_method': 'ALIAS_EXACT'
+                })
+                break
                 
-            # 3. Controlled fuzzy match
-            score = calculate_similarity(norm_extracted, org_norm_name)
+        # If we have an exact match, return it (but consider signal confidence)
+        if candidates and candidates[0]['score'] == 1.0:
+            if signal_confidence == "LOW":
+                # Low confidence signal + Exact match = Corroborated
+                pass
+            return uuid.UUID(candidates[0]['agency_id']), 'AGENCY_MATCHED', candidates
+
+        # 3. Controlled fuzzy match
+        # Extract names for RapidFuzz
+        choices = {idx: org['norm_name'] for idx, org in enumerate(cls._org_cache)}
+        # We also want to include aliases in fuzzy matching? The plan says "fuzz against the same in-memory list"
+        
+        fuzzy_results = process.extract(
+            norm_extracted, choices, scorer=fuzz.WRatio, limit=3
+        )
+        
+        for match_str, score, idx in fuzzy_results:
+            # RapidFuzz returns score 0-100
+            score_normalized = score / 100.0
             candidates.append({
-                'agency_id': str(org.agency_id),
-                'name': org.agency_name,
-                'score': score
+                'agency_id': cls._org_cache[idx]['agency_id'],
+                'name': cls._org_cache[idx]['name'],
+                'score': score_normalized,
+                'match_method': 'FUZZY'
             })
             
-        # Sort candidates by score descending
         candidates.sort(key=lambda x: x['score'], reverse=True)
         top_candidates = candidates[:3]
         
-        if top_candidates and top_candidates[0]['score'] >= 0.95:
-            return uuid.UUID(top_candidates[0]['agency_id']), 'MATCHED', top_candidates
+        if not top_candidates:
+            return None, 'AGENCY_NOT_FOUND', []
+            
+        if top_candidates[0]['score'] >= 0.90: # Slightly lower threshold for rapidfuzz WRatio
+            if signal_confidence == "LOW":
+                # Low confidence + Fuzzy match = Needs review
+                return None, 'AGENCY_REVIEW_REQUIRED', top_candidates
+            return uuid.UUID(top_candidates[0]['agency_id']), 'AGENCY_MATCHED', top_candidates
             
         return None, 'AGENCY_REVIEW_REQUIRED', top_candidates

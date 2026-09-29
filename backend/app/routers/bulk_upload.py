@@ -65,8 +65,9 @@ async def upload_job_files(
         with open(temp_path, "wb") as f:
             f.write(file_bytes)
             
-        # Ignore text files (like password.txt) for database registration
-        if file.filename.lower().endswith('.txt'):
+        # Ignore text files (like password.txt or passwords.csv) for database registration
+        if file.filename.lower().endswith('.txt') or file.filename.lower().endswith('.csv'):
+            job.total_files -= 1
             continue
             
         item = await BulkUploadService.add_item_to_job(
@@ -78,6 +79,7 @@ async def upload_job_files(
         )
         uploaded_items.append(item.id)
         
+    await db.commit()
     return {"message": f"Successfully uploaded files to job {job_id}", "item_ids": uploaded_items}
 
 

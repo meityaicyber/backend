@@ -3,29 +3,32 @@ import re
 from typing import Optional
 from simhash import Simhash
 
-def extract_text_from_bytes(file_bytes: bytes, extension: str) -> str:
-    """Extract raw text from file bytes based on the extension."""
-    text = ""
+def extract_pages_from_bytes(file_bytes: bytes, extension: str) -> list[str]:
+    """Extract raw text page by page."""
+    pages = []
     try:
         if extension == ".txt":
-            text = file_bytes.decode("utf-8", errors="ignore")
+            pages = [file_bytes.decode("utf-8", errors="ignore")]
         elif extension == ".pdf":
             from PyPDF2 import PdfReader
             reader = PdfReader(io.BytesIO(file_bytes))
-            pages_text = []
             for page in reader.pages:
                 extracted = page.extract_text()
                 if extracted:
-                    pages_text.append(extracted)
-            text = " ".join(pages_text)
+                    pages.append(extracted)
         elif extension == ".docx":
             from docx import Document
             doc = Document(io.BytesIO(file_bytes))
-            text = " ".join([p.text for p in doc.paragraphs])
+            pages = [" ".join([p.text for p in doc.paragraphs])]
     except Exception as e:
-        # If extraction fails, we just return empty text, which will result in a generic hash
-        print(f"Error extracting text for simhash: {e}")
+        print(f"Error extracting text: {e}")
         pass
+    return pages
+
+def extract_text_from_bytes(file_bytes: bytes, extension: str) -> str:
+    """Extract raw text from file bytes based on the extension."""
+    pages = extract_pages_from_bytes(file_bytes, extension)
+    text = " ".join(pages)
 
     # Normalize text: lowercase, remove punctuation, keep only alphanumeric
     text = text.lower()

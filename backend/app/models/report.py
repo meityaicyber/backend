@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric
+    Column, String, Boolean, DateTime, ForeignKey, BigInteger, Integer, Text, Enum, Date, SmallInteger, Numeric, Float
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 from sqlalchemy.orm import relationship
@@ -51,6 +51,12 @@ class Report(Base):
     agency_id = Column(
         UUID(as_uuid=True), ForeignKey("agencies.agency_id", ondelete="SET NULL"), nullable=True
     )
+    
+    extracted_agency_name = Column(String, nullable=True)
+    agency_detection_method = Column(String, nullable=True)
+    agency_match_method = Column(String, nullable=True)
+    agency_confidence = Column(Float, nullable=True)
+    agency_status = Column(String, default="AGENCY_PENDING")
 
     # Relationships
     uploader = relationship("User", back_populates="reports", lazy="joined")

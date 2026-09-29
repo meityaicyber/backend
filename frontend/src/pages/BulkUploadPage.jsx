@@ -18,9 +18,10 @@ export default function BulkUploadPage() {
   
   // Job State
   const [activeJob, setActiveJob] = useState(null);
-  const [jobId, setJobId] = useState(null);
+  const [jobId, setJobId] = useState(() => localStorage.getItem('activeBulkUploadJobId') || null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
   
   // Table State
   const [items, setItems] = useState([]);
@@ -61,6 +62,18 @@ export default function BulkUploadPage() {
   const fetchJobData = async (currentJobId) => {
     try {
       const res = await api.get(`/api/bulk-upload/jobs/${currentJobId}`);
+      
+      // If this is the initial load (activeJob is null) and the job is already fully processed,
+      // clear it out so the user gets a fresh upload screen. We keep COMPLETED_WITH_ERRORS
+      // so they can still review failed/pending items.
+      if (!activeJob && ['COMPLETED', 'FAILED', 'CANCELLED'].includes(res.data.status)) {
+        setJobId(null);
+        setActiveJob(null);
+        setItems([]);
+        localStorage.removeItem('activeBulkUploadJobId');
+        return;
+      }
+      
       setActiveJob(res.data);
       if (['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED'].includes(res.data.status)) {
         if (pollingRef.current) {
@@ -70,8 +83,24 @@ export default function BulkUploadPage() {
       }
     } catch (err) {
       console.error(err);
+      if (err.response?.status === 404) {
+        setJobId(null);
+        setActiveJob(null);
+        localStorage.removeItem('activeBulkUploadJobId');
+      }
     }
   };
+
+    useEffect(() => {
+    if (jobId) {
+      localStorage.setItem('activeBulkUploadJobId', jobId);
+      if (!activeJob) {
+        fetchJobData(jobId);
+      }
+    } else {
+      localStorage.removeItem('activeBulkUploadJobId');
+    }
+  }, [jobId]);
 
   const fetchItemsData = async (currentJobId, page, pageSize) => {
     try {

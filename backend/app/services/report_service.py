@@ -27,7 +27,7 @@ async def upload_report(
     file_bytes: bytes,
     filename: str,
     user_id: uuid.UUID,
-    agency_id: uuid.UUID,
+    agency_id: Optional[uuid.UUID] = None,
 ) -> Dict[str, Any]:
     """
     Full upload workflow:
@@ -198,6 +198,31 @@ async def upload_report(
         raise ValueError(f"Failed to encrypt and upload file to storage: {str(e)}")
 
     # 6. Create Report record
+    # Note: we intercept here to run lightweight agency matching!
+    from app.utils.simhash_utils import extract_pages_from_bytes
+    from app.services.agency_detection_service import AgencyDetectionService
+    from app.services.organisation_matching_service import OrganisationMatchingService
+
+    pages_text = extract_pages_from_bytes(file_bytes, extension)
+    detection = AgencyDetectionService.extract_agency(pages_text)
+    
+    agency_status = "AGENCY_PENDING"
+    agency_confidence = None
+    agency_match_method = None
+    extracted_agency_name = detection.get("extracted_name")
+    agency_detection_method = detection.get("extraction_method")
+    
+    if detection["status"] == "NAME_FOUND":
+        matched_org_id, match_status, candidates = await OrganisationMatchingService.match_agency(
+            db, extracted_agency_name, detection["signal_confidence"]
+        )
+        agency_status = match_status
+        if candidates:
+            agency_confidence = candidates[0]['score']
+            agency_match_method = candidates[0].get('match_method', 'UNKNOWN')
+        if matched_org_id:
+            agency_id = matched_org_id
+
     report = Report(
         uploaded_by=user_id,
         original_filename=filename,
@@ -210,9 +235,19 @@ async def upload_report(
         page_count=page_count,
         upload_status=UploadStatus.UPLOADED,
         agency_id=agency_id,
+        extracted_agency_name=extracted_agency_name,
+        agency_detection_method=agency_detection_method,
+        agency_match_method=agency_match_method,
+        agency_confidence=agency_confidence,
+        agency_status=agency_status,
     )
     db.add(report)
     await db.flush()
+
+    # Enqueue async fallback if we didn't get a confident match
+    if agency_status in ['AGENCY_PENDING', 'AGENCY_NOT_FOUND', 'AGENCY_REVIEW_REQUIRED']:
+        from app.services.bulk_worker import queue_fallback_agency_detection
+        queue_fallback_agency_detection(report.report_id)
 
     # Create FileValidation record
     validation = FileValidation(
@@ -285,6 +320,9 @@ async def upload_report(
         "validation_status": "PASSED",
         "duplicate_status": duplicate_status,
         "message": "File uploaded and validated successfully" if duplicate_status == "UNIQUE" else "File uploaded but flagged as a partial duplicate",
+        "agency_status": report.agency_status,
+        "extracted_agency_name": report.extracted_agency_name,
+        "matched_agency_id": report.agency_id,
     }
 
 

@@ -203,13 +203,8 @@ class BulkUploadService:
             if pwd_status == 'UNSUPPORTED_ENCRYPTION':
                 return await BulkUploadService._fail_item(db, item, "UNSUPPORTED_FILE_TYPE", "File encryption not supported")
 
-            # 7, 8, 9. Run Objective 1 -> Extract org -> Match org
-            # Bypassing ML extraction completely as per user request
-            matched_org_id = item.matched_agency_id
-            
-            item.status = BulkItemStatus.AGENCY_IDENTIFIED
-            
             # 10, 11. Process report (reuse single upload logic)
+            # Agency detection is now handled automatically inside upload_report
             try:
                 # We pass the decrypted bytes so that the downstream pipeline doesn't need the password again
                 result_dict = await upload_report(
@@ -217,8 +212,10 @@ class BulkUploadService:
                     file_bytes=decrypted_bytes,
                     filename=item.filename,
                     user_id=user_id,
-                    agency_id=matched_org_id
+                    agency_id=None  # Now determined inside upload_report
                 )
+                
+                new_report_id = result_dict.get("report_id")
                 
                 # Check if it was flagged as duplicate by the downstream logic
                 if result_dict.get("duplicate_status") == "PARTIAL_DUPLICATE":
@@ -226,13 +223,20 @@ class BulkUploadService:
                     pass
                     
                 # Run the deep AI analytics pipeline automatically as requested!
-                new_report_id = result_dict.get("report_id")
                 if new_report_id:
                     import asyncio
                     # Fire and forget or await it? We'll await it to ensure it completes before marking COMPLETED
                     await _run_deep_ai_pipeline(db, new_report_id, item.filename, decrypted_bytes, detected_mime)
 
-                item.status = BulkItemStatus.COMPLETED
+                item.extracted_agency_name = result_dict.get("extracted_agency_name")
+                item.matched_agency_id = result_dict.get("matched_agency_id")
+                
+                agency_status = result_dict.get("agency_status")
+                if agency_status in ["AGENCY_PENDING", "AGENCY_REVIEW_REQUIRED"]:
+                    item.status = BulkItemStatus.AGENCY_REVIEW_REQUIRED
+                else:
+                    item.status = BulkItemStatus.COMPLETED
+                    
                 item.completed_at = datetime.now(timezone.utc)
                 await db.commit()
                 

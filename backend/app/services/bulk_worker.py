@@ -19,16 +19,30 @@ logger = logging.getLogger(__name__)
 class BulkWorkerManager:
     def __init__(self):
         self.workers = []
+        self.fallback_workers = []
         self.is_running = False
         self.job_passwords = {}
+        self.fallback_queue = asyncio.Queue()
 
     async def start_workers(self):
         self.is_running = True
         concurrency = settings.BULK_UPLOAD_CONCURRENCY
-        logger.info(f"Starting {concurrency} bulk upload workers...")
+        logger.info(f"Starting {concurrency} bulk upload workers and 2 fallback workers...")
+        
+        # Pre-populate fallback queue with any pending reports on startup
+        async with AsyncSessionLocal() as db:
+            from app.models.report import Report
+            result = await db.execute(select(Report.report_id).where(Report.agency_status == 'AGENCY_PENDING'))
+            for r_id in result.scalars().all():
+                self.fallback_queue.put_nowait(str(r_id))
+                
         for i in range(concurrency):
             worker_task = asyncio.create_task(self.worker_loop(i))
             self.workers.append(worker_task)
+            
+        for i in range(2):
+            fallback_task = asyncio.create_task(self.agency_fallback_loop(i))
+            self.fallback_workers.append(fallback_task)
 
     async def stop_workers(self):
         logger.info("Stopping bulk upload workers...")
@@ -36,8 +50,11 @@ class BulkWorkerManager:
         self.job_passwords = {}
         for task in self.workers:
             task.cancel()
-        await asyncio.gather(*self.workers, return_exceptions=True)
+        for task in self.fallback_workers:
+            task.cancel()
+        await asyncio.gather(*self.workers, *self.fallback_workers, return_exceptions=True)
         self.workers.clear()
+        self.fallback_workers.clear()
 
     async def worker_loop(self, worker_id: int):
         while self.is_running:
@@ -204,5 +221,66 @@ class BulkWorkerManager:
             
         await db.commit()
 
+    async def agency_fallback_loop(self, worker_id: int):
+        from app.models.report import Report
+        from app.services.objective1_service import Objective1Service
+        from app.utils.storage import download_file
+        from app.utils.encryption_utils import decrypt_file
+        from sqlalchemy import update
+        
+        while self.is_running:
+            try:
+                report_id = await self.fallback_queue.get()
+                logger.info(f"Fallback worker {worker_id} processing report {report_id} for agency extraction")
+                
+                async with AsyncSessionLocal() as db:
+                    report = await db.get(Report, report_id)
+                    if not report or report.agency_status not in ['AGENCY_PENDING', 'AGENCY_NOT_FOUND', 'AGENCY_REVIEW_REQUIRED']:
+                        self.fallback_queue.task_done()
+                        continue
+                        
+                    # 1. Download file from SeaweedFS
+                    encrypted_bytes = download_file(report.stored_filename)
+                    if not encrypted_bytes:
+                        continue
+                        
+                    # Decrypt it since Objective 1 needs the actual PDF
+                    file_bytes = decrypt_file(encrypted_bytes)
+                    
+                    # 2. Call Objective 1
+                    extracted_name, matched_agency_id, match_status, candidates = await Objective1Service.extract_and_match_agency(
+                        db, file_bytes, report.original_filename, report.mime_type
+                    )
+                    
+                    agency_confidence = candidates[0]['score'] if candidates else None
+                    agency_match_method = candidates[0].get('match_method', 'UNKNOWN') if candidates else None
+                    
+                    # 3. Update report
+                    await db.execute(
+                        update(Report)
+                        .where(Report.report_id == report_id)
+                        .values(
+                            agency_id=matched_agency_id,
+                            extracted_agency_name=extracted_name or report.extracted_agency_name,
+                            agency_detection_method="OBJECTIVE_1_ML" if extracted_name else report.agency_detection_method,
+                            agency_match_method=agency_match_method or report.agency_match_method,
+                            agency_confidence=agency_confidence or report.agency_confidence,
+                            agency_status=match_status
+                        )
+                    )
+                    await db.commit()
+                    
+                self.fallback_queue.task_done()
+                
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Fallback worker {worker_id} encountered an error: {e}")
+                await asyncio.sleep(5.0)
+
+
 # Global instance
 bulk_worker_manager = BulkWorkerManager()
+
+def queue_fallback_agency_detection(report_id: uuid.UUID):
+    bulk_worker_manager.fallback_queue.put_nowait(str(report_id))
