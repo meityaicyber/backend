@@ -643,12 +643,12 @@ export default function AnalyticsDashboardPage() {
           </Button>
 
           <FormControl size="small" sx={{ minWidth: 200, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
-            <InputLabel sx={{ color: 'text.secondary' }}>Customize Widgets</InputLabel>
+            <InputLabel sx={{ color: 'text.secondary' }}>Unlock Widgets</InputLabel>
             <Select
               multiple
               value={visibleWidgets}
               onChange={(e) => setVisibleWidgets(e.target.value)}
-              input={<OutlinedInput label="Customize Widgets" />}
+              input={<OutlinedInput label="Unlock Widgets" />}
               renderValue={(selected) => `${selected.length} Widgets`}
             >
               {allWidgets.map((w) => (
@@ -832,7 +832,10 @@ export default function AnalyticsDashboardPage() {
       {/*  CUSTOMIZABLE GRID LAYOUT  */}
       <ResponsiveGridLayout
         className="layout"
-        layouts={layouts}
+        layouts={Object.keys(layouts).reduce((acc, key) => ({
+          ...acc,
+          [key]: layouts[key].map(l => ({ ...l, static: !visibleWidgets.includes(l.i) }))
+        }), {})}
         onLayoutChange={(currentLayout, allLayouts) => setLayouts(allLayouts)}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
@@ -840,8 +843,7 @@ export default function AnalyticsDashboardPage() {
         draggableHandle=".MuiCardHeader-root, .MuiCardContent-root"
       >
         
-        {visibleWidgets.includes("severity") && (
-          <div key="severity">
+        <div key="severity">
             <ChartCard title="Severity Distribution" icon={<Shield />} delay={350}>
             {severityDist && severityDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -885,9 +887,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("status") && (
-          <div key="status">
+        <div key="status">
             <ChartCard title="Vulnerability Status" icon={<Layers />} delay={400}>
             {statusDist && statusDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -931,9 +931,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("trend") && (
-          <div key="trend">
+        <div key="trend">
             <ChartCard title="CVSS Score Distribution" icon={<Speed />} delay={450}>
             {cvssDist && cvssDist.some((d) => d.count > 0) ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -955,9 +953,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("cvssDist") && (
-          <div key="cvssDist">
+        <div key="cvssDist">
             <ChartCard title="Vulnerability Trend (12 Months)" icon={<TrendingUp />} delay={500}>
             {trend && trend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -990,9 +986,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("categories") && (
-          <div key="categories">
+        <div key="categories">
             <ChartCard title="Top Vulnerability Categories" icon={<Category />} delay={550}>
             {categories && categories.length > 0 ? (
               <ResponsiveContainer width="100%" height={Math.max(300, categories.length * 32)}>
@@ -1020,9 +1014,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("topCwe") && (
-          <div key="topCwe">
+        <div key="topCwe">
             <ChartCard title="Top CWE Weaknesses" icon={<Shield />} delay={600}>
             {topCwe && topCwe.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1043,9 +1035,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("topCve") && (
-          <div key="topCve">
+        <div key="topCve">
             <ChartCard title="Top CVE IDs" icon={<GppBad />} delay={650}>
             {topCve && topCve.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1066,9 +1056,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("assets") && (
-          <div key="assets">
+        <div key="assets">
             <ChartCard title="Most Affected Assets" icon={<Storage />} delay={700}>
             {assets && assets.length > 0 ? (
               <ResponsiveContainer width="100%" height={Math.max(300, assets.length * 32)}>
@@ -1096,9 +1084,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("newRepeat") && (
-          <div key="newRepeat">
+        <div key="newRepeat">
             <ChartCard title="New vs Repeat Findings" icon={<Repeat />} delay={750}>
             {newRepeat && newRepeat.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -1134,9 +1120,7 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
-        {visibleWidgets.includes("dataGrid") && (
-          <div key="dataGrid">
+        <div key="dataGrid">
             <ChartCard 
             title={`Vulnerabilities ${chartFilter.value ? `(Filtered by ${chartFilter.value})` : ''}`} 
             icon={<BugReport />} 
@@ -1183,7 +1167,6 @@ export default function AnalyticsDashboardPage() {
             )}
           </ChartCard>
           </div>
-        )}
       </ResponsiveGridLayout>
 
     </Box>

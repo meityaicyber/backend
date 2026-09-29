@@ -159,12 +159,12 @@ export default function MLAnalyticsDashboardPage() {
           
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <FormControl size="small" sx={{ minWidth: 200, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
-            <InputLabel sx={{ color: 'text.secondary' }}>Customize Widgets</InputLabel>
+            <InputLabel sx={{ color: 'text.secondary' }}>Unlock Widgets</InputLabel>
             <Select
               multiple
               value={visibleWidgets}
               onChange={(e) => setVisibleWidgets(e.target.value)}
-              input={<OutlinedInput label="Customize Widgets" />}
+              input={<OutlinedInput label="Unlock Widgets" />}
               renderValue={(selected) => `${selected.length} Widgets`}
             >
               {allWidgets.map((w) => (
@@ -186,7 +186,10 @@ export default function MLAnalyticsDashboardPage() {
       {/*  CUSTOMIZABLE GRID LAYOUT  */}
       <ResponsiveGridLayout
         className="layout"
-        layouts={layouts}
+        layouts={Object.keys(layouts).reduce((acc, key) => ({
+          ...acc,
+          [key]: layouts[key].map(l => ({ ...l, static: !visibleWidgets.includes(l.i) }))
+        }), {})}
         onLayoutChange={(currentLayout, allLayouts) => setLayouts(allLayouts)}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
         cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
@@ -194,8 +197,7 @@ export default function MLAnalyticsDashboardPage() {
         draggableHandle=".MuiCardContent-root"
       >
     
-        {visibleWidgets.includes("forecast") && (
-          <div key="forecast">
+        <div key="forecast">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -221,9 +223,7 @@ export default function MLAnalyticsDashboardPage() {
             </CardContent>
           </Card>
           </div>
-        )}
-        {visibleWidgets.includes("clustering") && (
-          <div key="clustering">
+        <div key="clustering">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -249,9 +249,7 @@ export default function MLAnalyticsDashboardPage() {
             </CardContent>
           </Card>
           </div>
-        )}
-        {visibleWidgets.includes("topsis") && (
-          <div key="topsis">
+        <div key="topsis">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -294,9 +292,7 @@ export default function MLAnalyticsDashboardPage() {
             </CardContent>
           </Card>
           </div>
-        )}
-        {visibleWidgets.includes("anomalies") && (
-          <div key="anomalies">
+        <div key="anomalies">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -336,7 +332,6 @@ export default function MLAnalyticsDashboardPage() {
             </CardContent>
           </Card>
           </div>
-        )}
       </ResponsiveGridLayout>
     </Box>
   );
