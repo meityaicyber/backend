@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { Responsive, WidthProvider } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+const ResponsiveGridLayout = WidthProvider(Responsive);
 import {
   Box, Card, CardContent, Grid, Typography, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert
+  TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert,
+  FormControl, InputLabel, Select, MenuItem, Checkbox, ListItemText, OutlinedInput
 } from '@mui/material';
 import {
   Timeline, Assessment, BubbleChart, ReportProblem, ErrorOutline
@@ -43,6 +48,39 @@ export default function MLAnalyticsDashboardPage() {
   const [anomalies, setAnomalies] = useState(null);
   const [prioritize, setPrioritize] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const allWidgets = [
+    { id: 'forecast', label: '6-Month Vulnerability Forecast' },
+    { id: 'clustering', label: 'Agency Risk Clustering' },
+    { id: 'topsis', label: 'Prioritized Action Queue' },
+    { id: 'anomalies', label: 'Anomalous Agencies' }
+  ];
+  
+  const [visibleWidgets, setVisibleWidgets] = useState(() => {
+    const saved = localStorage.getItem('mlVisibleWidgets');
+    return saved ? JSON.parse(saved) : allWidgets.map(w => w.id);
+  });
+  
+  const [layouts, setLayouts] = useState(() => {
+    const saved = localStorage.getItem('mlLayouts');
+    return saved ? JSON.parse(saved) : {
+      lg: [
+        { i: 'forecast', x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'clustering', x: 6, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'topsis', x: 0, y: 2, w: 7, h: 3, minW: 4, minH: 2 },
+        { i: 'anomalies', x: 7, y: 2, w: 5, h: 3, minW: 3, minH: 2 }
+      ]
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('mlVisibleWidgets', JSON.stringify(visibleWidgets));
+  }, [visibleWidgets]);
+
+  useEffect(() => {
+    localStorage.setItem('mlLayouts', JSON.stringify(layouts));
+  }, [layouts]);
+
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -111,20 +149,54 @@ export default function MLAnalyticsDashboardPage() {
     <Box>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
         <Assessment sx={{ fontSize: 40, color: '#00D4FF' }} />
-        <Box>
-          <Typography variant="h4" fontWeight={800}>AI Risk Analytics (Air-Gapped)</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Mathematical Forecasting, Clustering, and Task Prioritization without external models
-          </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+          <Box>
+            <Typography variant="h4" fontWeight={800}>AI Risk Analytics (Air-Gapped)</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Mathematical Forecasting, Clustering, and Task Prioritization without external models
+            </Typography>
+          </Box>
+          
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControl size="small" sx={{ minWidth: 200, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
+            <InputLabel sx={{ color: 'text.secondary' }}>Customize Widgets</InputLabel>
+            <Select
+              multiple
+              value={visibleWidgets}
+              onChange={(e) => setVisibleWidgets(e.target.value)}
+              input={<OutlinedInput label="Customize Widgets" />}
+              renderValue={(selected) => `${selected.length} Widgets`}
+            >
+              {allWidgets.map((w) => (
+                <MenuItem key={w.id} value={w.id}>
+                  <Checkbox checked={visibleWidgets.indexOf(w.id) > -1} />
+                  <ListItemText primary={w.label} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
         </Box>
       </Box>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        {/* Trend Forecast */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      
+      {/*  CUSTOMIZABLE GRID LAYOUT  */}
+      <ResponsiveGridLayout
+        className="layout"
+        layouts={layouts}
+        onLayoutChange={(currentLayout, allLayouts) => setLayouts(allLayouts)}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+        rowHeight={170}
+        draggableHandle=".MuiCardContent-root"
+      >
+    
+        <div key="forecast">
+          {visibleWidgets.includes("forecast") && (
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <Timeline sx={{ color: '#00D4FF' }} />
@@ -148,11 +220,11 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-        </Grid>
-
-        {/* Clustering */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          )}
+        </div>
+        <div key="clustering">
+          {visibleWidgets.includes("clustering") && (
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <CardContent sx={{ flex: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <BubbleChart sx={{ color: '#7C4DFF' }} />
@@ -176,19 +248,17 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={3}>
-        {/* Prioritization */}
-        <Grid item xs={12} md={7}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
+          )}
+        </div>
+        <div key="topsis">
+          {visibleWidgets.includes("topsis") && (
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <ReportProblem sx={{ color: '#FF1744' }} />
                 <Typography variant="h6" fontWeight={700}>Prioritized Action Queue (TOPSIS)</Typography>
               </Box>
-              <TableContainer>
+              <TableContainer sx={{ flex: 1, overflowY: 'auto' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -223,12 +293,12 @@ export default function MLAnalyticsDashboardPage() {
               </TableContainer>
             </CardContent>
           </Card>
-        </Grid>
-
-        {/* Anomalies */}
-        <Grid item xs={12} md={5}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
+          )}
+        </div>
+        <div key="anomalies">
+          {visibleWidgets.includes("anomalies") && (
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <ErrorOutline sx={{ color: '#FF9100' }} />
                 <Typography variant="h6" fontWeight={700}>Anomalous Agencies (Isolation Forest)</Typography>
@@ -236,7 +306,7 @@ export default function MLAnalyticsDashboardPage() {
               {anomalies?.status === 'insufficient_data' ? (
                 <Alert severity="info">{anomalies.message}</Alert>
               ) : (
-                <TableContainer>
+                <TableContainer sx={{ flex: 1, overflowY: 'auto' }}>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -265,8 +335,9 @@ export default function MLAnalyticsDashboardPage() {
               )}
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+          )}
+        </div>
+      </ResponsiveGridLayout>
     </Box>
   );
 }
