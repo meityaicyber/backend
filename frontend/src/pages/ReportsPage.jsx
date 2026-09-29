@@ -747,8 +747,7 @@ function ReportsPage() {
     try {
       await api.delete(`/api/reports/${reportId}`);
       enqueueSnackbar('Report deleted', { variant: 'success' });
-      setReports((prev) => prev.filter((r) => r.report_id !== reportId));
-      setTotal((prev) => prev - 1);
+      refetch();
     } catch {
       enqueueSnackbar('Delete failed', { variant: 'error' });
     }
