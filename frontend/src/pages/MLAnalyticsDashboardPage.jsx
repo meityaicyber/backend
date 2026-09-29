@@ -199,7 +199,7 @@ export default function MLAnalyticsDashboardPage() {
     
         <div key="forecast">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flex: 1 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <Timeline sx={{ color: '#00D4FF' }} />
                 <Typography variant="h6" fontWeight={700}>6-Month Vulnerability Forecast</Typography>
@@ -207,7 +207,7 @@ export default function MLAnalyticsDashboardPage() {
               {forecast?.status === 'insufficient_data' ? (
                 <Alert severity="info">{forecast.message}</Alert>
               ) : (
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ flex: 1, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={forecastData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -225,7 +225,7 @@ export default function MLAnalyticsDashboardPage() {
           </div>
         <div key="clustering">
             <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <CardContent sx={{ flex: 1 }}>
+            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                 <BubbleChart sx={{ color: '#7C4DFF' }} />
                 <Typography variant="h6" fontWeight={700}>Agency Risk Clustering (HDBSCAN)</Typography>
@@ -233,7 +233,7 @@ export default function MLAnalyticsDashboardPage() {
               {clusters?.status === 'insufficient_data' ? (
                 <Alert severity="info">{clusters.message}</Alert>
               ) : (
-                <Box sx={{ height: 300 }}>
+                <Box sx={{ flex: 1, minHeight: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
