@@ -834,7 +834,7 @@ export default function AnalyticsDashboardPage() {
         className="layout"
         layouts={Object.keys(layouts).reduce((acc, key) => ({
           ...acc,
-          [key]: layouts[key].map(l => ({ ...l, static: !visibleWidgets.includes(l.i) }))
+          [key]: layouts[key].map(l => ({ ...l, isDraggable: visibleWidgets.includes(l.i), isResizable: visibleWidgets.includes(l.i) }))
         }), {})}
         onLayoutChange={(currentLayout, allLayouts) => setLayouts(allLayouts)}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
