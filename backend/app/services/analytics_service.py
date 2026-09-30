@@ -25,12 +25,77 @@ def apply_orm_filters(query, agency_id: Optional[UUID] = None, report_id: Option
             query = query.where(DetailedObservation.created_at >= threshold)
             
     if severities:
-        query = query.where(DetailedObservation.severity.in_([ObservationSeverity(s) for s in severities]))
+        mapped_sev = []
+        for s in severities:
+            try:
+                if s.upper() == "INFORMATIONAL":
+                    mapped_sev.append("Informational") # If not in enum, fallback string (though type is Enum)
+                else:
+                    mapped_sev.append(ObservationSeverity[s.upper()])
+            except KeyError:
+                pass
+        if mapped_sev:
+            query = query.where(DetailedObservation.severity.in_(mapped_sev))
         
     if statuses:
-        query = query.where(DetailedObservation.status.in_([ObservationStatus(s) for s in statuses]))
+        mapped_status = []
+        for s in statuses:
+            try:
+                mapped_status.append(ObservationStatus[s.upper()])
+            except KeyError:
+                # Handle edge cases like PARTIALLY_REMEDIATED
+                if s.upper() == 'PARTIALLY REMEDIATED' or s.upper() == 'PARTIALLY_REMEDIATED':
+                    mapped_status.append(ObservationStatus.PARTIALLY_REMEDIATED)
+        if mapped_status:
+            query = query.where(DetailedObservation.status.in_(mapped_status))
         
     return query
+
+
+def apply_raw_filters(where_clauses, params, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None):
+    if time_range and time_range != 'ALL':
+        days = 0
+        if time_range == '30_DAYS': days = 30
+        elif time_range == '6_MONTHS': days = 180
+        elif time_range == '1_YEAR': days = 365
+        if days > 0:
+            where_clauses.append(f"v.created_at >= (CURRENT_TIMESTAMP - INTERVAL '{days} days')")
+
+    if severities:
+        mapped_sev = []
+        for s in severities:
+            if s.upper() == "INFORMATIONAL":
+                mapped_sev.append("Informational")
+            else:
+                try:
+                    mapped_sev.append(ObservationSeverity[s.upper()].value)
+                except KeyError:
+                    pass
+        if mapped_sev:
+            placeholders = []
+            for i, s in enumerate(mapped_sev):
+                key = f"sev_{i}"
+                placeholders.append(f":{key}")
+                params[key] = s
+            if placeholders:
+                where_clauses.append(f"v.severity IN ({','.join(placeholders)})")
+
+    if statuses:
+        mapped_status = []
+        for s in statuses:
+            try:
+                mapped_status.append(ObservationStatus[s.upper()].value)
+            except KeyError:
+                if s.upper() == 'PARTIALLY REMEDIATED' or s.upper() == 'PARTIALLY_REMEDIATED':
+                    mapped_status.append(ObservationStatus.PARTIALLY_REMEDIATED.value)
+        if mapped_status:
+            placeholders = []
+            for i, s in enumerate(mapped_status):
+                key = f"stat_{i}"
+                placeholders.append(f":{key}")
+                params[key] = s
+            if placeholders:
+                where_clauses.append(f"v.status IN ({','.join(placeholders)})")
 
 
 async def get_summary(db: AsyncSession, agency_id: Optional[UUID] = None, report_id: Optional[UUID] = None, time_range: Optional[str] = None, severities: Optional[list] = None, statuses: Optional[list] = None) -> dict:
@@ -210,6 +275,8 @@ async def get_trend(db: AsyncSession, agency_id: Optional[UUID] = None, report_i
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
         
+    apply_raw_filters(where_clauses, params, time_range, severities, statuses)
+        
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
         GROUP BY date_trunc('month', v.created_at)
         ORDER BY date_trunc('month', v.created_at)
@@ -237,6 +304,8 @@ async def get_top_cwe(db: AsyncSession, agency_id: Optional[UUID] = None, report
         base_sql += " JOIN reports AS r ON v.report_id = r.report_id "
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
+
+    apply_raw_filters(where_clauses, params, time_range, severities, statuses)
 
     base_sql += " CROSS JOIN LATERAL unnest(v.cwe) AS cwe_item(cwe_id) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
@@ -268,6 +337,8 @@ async def get_top_cve(db: AsyncSession, agency_id: Optional[UUID] = None, report
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
 
+    apply_raw_filters(where_clauses, params, time_range, severities, statuses)
+
     base_sql += " CROSS JOIN LATERAL unnest(v.cve_id) AS cve_item(cve_id) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """
         GROUP BY cve_item.cve_id
@@ -297,6 +368,8 @@ async def get_affected_assets(db: AsyncSession, agency_id: Optional[UUID] = None
         base_sql += " JOIN reports AS r ON v.report_id = r.report_id "
         where_clauses.append("r.agency_id = :agency_id")
         params["agency_id"] = str(agency_id)
+
+    apply_raw_filters(where_clauses, params, time_range, severities, statuses)
 
     base_sql += " CROSS JOIN LATERAL unnest(v.affected_asset) AS asset_item(asset) "
     sql_query = base_sql + " WHERE " + " AND ".join(where_clauses) + """

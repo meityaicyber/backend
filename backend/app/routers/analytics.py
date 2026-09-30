@@ -197,10 +197,25 @@ async def get_all_vulnerabilities_raw(
             query = query.where(DetailedObservation.created_at >= threshold)
             
     if severities:
-        query = query.where(DetailedObservation.severity.in_([ObservationSeverity(s) for s in severities]))
+        mapped_sev = []
+        for s in severities:
+            try:
+                mapped_sev.append(ObservationSeverity[s.upper()])
+            except KeyError:
+                pass
+        if mapped_sev:
+            query = query.where(DetailedObservation.severity.in_(mapped_sev))
         
     if statuses:
-        query = query.where(DetailedObservation.status.in_([ObservationStatus(s) for s in statuses]))
+        mapped_status = []
+        for s in statuses:
+            try:
+                mapped_status.append(ObservationStatus[s.upper()])
+            except KeyError:
+                if s.upper() == 'PARTIALLY REMEDIATED' or s.upper() == 'PARTIALLY_REMEDIATED':
+                    mapped_status.append(ObservationStatus.PARTIALLY_REMEDIATED)
+        if mapped_status:
+            query = query.where(DetailedObservation.status.in_(mapped_status))
         
     # Get total count for pagination
     count_query = select(func.count()).select_from(query.subquery())

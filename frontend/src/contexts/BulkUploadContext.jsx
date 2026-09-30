@@ -33,6 +33,7 @@ export const BulkUploadProvider = ({ children }) => {
   const passwordMapRef = useRef({});
   const selectedAgencyRef = useRef('');
   const concurrencyRef = useRef(1);
+  const extractedPasswordsRef = useRef([]);
 
   // Sync refs to React state periodically (500ms)
   useEffect(() => {
@@ -56,11 +57,13 @@ export const BulkUploadProvider = ({ children }) => {
     };
   }, [bulkRunning, bulkFinished, bulkStartTime]);
 
-  const updateFileStatus = (id, status, details, clearFile = false) => {
+  const updateFileStatus = (id, status, details, clearFile = false, protectedStatus = undefined) => {
     const itemIndex = bulkFilesDataRef.current.findIndex(item => item.id === id);
     if (itemIndex > -1) {
       const item = bulkFilesDataRef.current[itemIndex];
-      bulkFilesDataRef.current[itemIndex] = { ...item, status, details };
+      const updates = { status, details };
+      if (protectedStatus !== undefined) updates.protected = protectedStatus;
+      bulkFilesDataRef.current[itemIndex] = { ...item, ...updates };
       if (clearFile) {
         bulkFilesDataRef.current[itemIndex].file = null; // Free memory!
       }
@@ -97,7 +100,7 @@ export const BulkUploadProvider = ({ children }) => {
     }
   };
 
-  const processFile = async (fileData, passwordMap, selectedAgency) => {
+  const processFile = async (fileData, passwordMap, selectedAgency, extractedPasswords = []) => {
     if (isPausedRef.current) return false; // Stopped
 
     const file = fileData.file;
@@ -122,6 +125,7 @@ export const BulkUploadProvider = ({ children }) => {
         formData.append('file', file, cleanName);
         if (selectedAgency) formData.append('agency_id', selectedAgency);
         if (matchedPassword) formData.append('file_password', matchedPassword);
+        if (extractedPasswords && extractedPasswords.length > 0) formData.append('bulk_passwords', JSON.stringify(extractedPasswords));
 
         // Upload
         const uploadRes = await api.post('/api/reports/upload', formData, {
@@ -134,7 +138,11 @@ export const BulkUploadProvider = ({ children }) => {
         updateFileStatus(fileData.id, 'Pipeline', attempt > 1 ? `Running Pipeline (Retry ${attempt})...` : 'Running AI Pipeline...');
         await api.post(`/api/reports/${reportId}/run-pipeline`, {}, { timeout: 300000 });
         
-        updateFileStatus(fileData.id, 'Success', 'File saved and pipeline completed.', true);
+        if (uploadRes.data.decrypted || fileData.protected === 'Yes') {
+          updateFileStatus(fileData.id, 'Success', 'File saved and pipeline completed.', true, 'Decrypted');
+        } else {
+          updateFileStatus(fileData.id, 'Success', 'File saved and pipeline completed.', true);
+        }
         return true; // Success!
 
       } catch (err) {
@@ -183,7 +191,7 @@ export const BulkUploadProvider = ({ children }) => {
     return false;
   };
 
-  const startQueue = async (filesData, passwordMap, selectedAgency, concurrency) => {
+  const startQueue = async (filesData, passwordMap, selectedAgency, concurrency, extractedPasswords) => {
     const processNext = async () => {
       while (currentIndexRef.current < totalRef.current && !isPausedRef.current) {
         const localIndex = currentIndexRef.current++;
@@ -194,7 +202,7 @@ export const BulkUploadProvider = ({ children }) => {
           continue;
         }
 
-        await processFile(fileData, passwordMap, selectedAgency);
+        await processFile(fileData, passwordMap, selectedAgency, extractedPasswords);
         
         progressRef.current++;
         
@@ -231,10 +239,11 @@ export const BulkUploadProvider = ({ children }) => {
     }
   };
 
-  const startBulkUpload = (filesData, passwordMap, selectedAgency, concurrency) => {
+  const startBulkUpload = (filesData, passwordMap, selectedAgency, concurrency, extractedPasswords = []) => {
     passwordMapRef.current = passwordMap || {};
     selectedAgencyRef.current = selectedAgency || '';
     concurrencyRef.current = concurrency || 1;
+    extractedPasswordsRef.current = extractedPasswords || [];
     bulkFilesDataRef.current = filesData.map(item => ({...item, status: 'Pending', details: '-'}));
     progressRef.current = 0;
     totalRef.current = filesData.length;
@@ -252,7 +261,7 @@ export const BulkUploadProvider = ({ children }) => {
     setIsWidgetMinimized(false);
     setEtaSeconds(null);
 
-    startQueue(filesData, passwordMapRef.current, selectedAgencyRef.current, concurrencyRef.current);
+    startQueue(filesData, passwordMapRef.current, selectedAgencyRef.current, concurrencyRef.current, extractedPasswordsRef.current);
   };
   
   const pauseBulkUpload = () => {
@@ -264,7 +273,7 @@ export const BulkUploadProvider = ({ children }) => {
     isPausedRef.current = false;
     setBulkPaused(false);
     setBulkRunning(true);
-    startQueue(bulkFilesDataRef.current, passwordMapRef.current, selectedAgencyRef.current, concurrencyRef.current);
+    startQueue(bulkFilesDataRef.current, passwordMapRef.current, selectedAgencyRef.current, concurrencyRef.current, extractedPasswordsRef.current);
   };
 
   const saveProgressToLocal = () => {
@@ -273,7 +282,8 @@ export const BulkUploadProvider = ({ children }) => {
        filesData: bulkFilesDataRef.current.map(f => ({ ...f, file: null })),
        progress: progressRef.current,
        total: totalRef.current,
-       currentIndex: currentIndexRef.current
+       currentIndex: currentIndexRef.current,
+       extractedPasswords: extractedPasswordsRef.current
      };
      localStorage.setItem('bulkUploadBackup', JSON.stringify(backup));
   };

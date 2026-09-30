@@ -123,3 +123,4 @@ class UploadResponse(BaseModel):
     validation_status: str
     duplicate_status: str
     message: str
+    decrypted: Optional[bool] = False

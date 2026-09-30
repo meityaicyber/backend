@@ -1017,14 +1017,14 @@ const columns = [
               </FormControl>
 
               {viewMode === 'FILE' && (
-                <FormControl size="small" sx={{ minWidth: 240 }} disabled={!selectedAgencyId}>
+                <FormControl size="small" sx={{ minWidth: 240 }}>
                   <InputLabel>Select File / Report</InputLabel>
                   <Select
                     value={selectedFileId}
                     label="Select File / Report"
                     onChange={(e) => setSelectedFileId(e.target.value)}
                   >
-                    {agencyFiles.map((file) => (
+                    {(selectedAgencyId ? agencyFiles : files).map((file) => (
                       <MenuItem key={file.id} value={file.id}>
                         {file.name} ({new Date(file.date).toLocaleDateString()})
                       </MenuItem>

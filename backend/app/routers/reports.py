@@ -20,6 +20,7 @@ async def upload_report(
     file: UploadFile = File(...),
     agency_id: uuid.UUID = Form(None),
     file_password: str = Form(None),
+    bulk_passwords: str = Form(None),
     current_user: User = Depends(require_roles("ADMIN", "AUDITOR")),
     db: AsyncSession = Depends(get_db),
 ):
@@ -33,33 +34,64 @@ async def upload_report(
             detail=f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB",
         )
 
+    import json
+    passwords_to_try = []
+    if file_password:
+        passwords_to_try.append(file_password)
+    if bulk_passwords:
+        try:
+            parsed = json.loads(bulk_passwords)
+            if isinstance(parsed, list):
+                passwords_to_try.extend(parsed)
+        except Exception:
+            pass
+
     # Check password protection
     from app.utils.file_utils import validate_extension
     from app.utils.encryption_utils import is_pdf_encrypted, decrypt_pdf, is_docx_encrypted, decrypt_docx
     
     ext_valid, extension = validate_extension(file.filename)
+    is_decrypted = False
     if ext_valid:
         if extension == '.pdf':
             if is_pdf_encrypted(file_bytes):
-                if not file_password:
+                if not passwords_to_try:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
-                try:
-                    file_bytes = decrypt_pdf(file_bytes, file_password)
-                except Exception:
+                
+                decrypted = False
+                for pwd in passwords_to_try:
+                    try:
+                        file_bytes = decrypt_pdf(file_bytes, pwd)
+                        decrypted = True
+                        break
+                    except Exception:
+                        continue
+                if not decrypted:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
+                is_decrypted = True
         elif extension == '.docx':
             if is_docx_encrypted(file_bytes):
-                if not file_password:
+                if not passwords_to_try:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="PASSWORD_REQUIRED")
-                try:
-                    file_bytes = decrypt_docx(file_bytes, file_password)
-                except Exception:
+                
+                decrypted = False
+                for pwd in passwords_to_try:
+                    try:
+                        file_bytes = decrypt_docx(file_bytes, pwd)
+                        decrypted = True
+                        break
+                    except Exception:
+                        continue
+                if not decrypted:
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="INVALID_PASSWORD")
+                is_decrypted = True
 
     try:
         result = await report_service.upload_report(
             db, file_bytes, file.filename, current_user.user_id, agency_id
         )
+        if isinstance(result, dict):
+            result['decrypted'] = is_decrypted
         return UploadResponse(**result)
     except ValueError as e:
         raise HTTPException(

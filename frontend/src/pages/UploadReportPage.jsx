@@ -43,6 +43,8 @@ function UploadReportPage() {
   const [generatingExcel, setGeneratingExcel] = useState(false);
   const [generatedExcelUrl, setGeneratedExcelUrl] = useState(null);
   const [folderLoading, setFolderLoading] = useState(false);
+  const [extractedPasswords, setExtractedPasswords] = useState([]);
+  const [txtFileNames, setTxtFileNames] = useState([]);
 
   useEffect(() => {
     const fetchAgencies = async () => {
@@ -240,32 +242,92 @@ function UploadReportPage() {
 
   const handleReset = () => { setResult(null); setError(''); setProgress(0); };
 
+  const checkIsProtected = async (file) => {
+    try {
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.endsWith('.pdf')) {
+        let buffer = await file.slice(0, 1024 * 10).arrayBuffer();
+        let text = new TextDecoder('utf-8').decode(buffer);
+        if (text.includes('/Encrypt')) return true;
+        
+        const endStart = Math.max(0, file.size - 1024 * 10);
+        buffer = await file.slice(endStart, file.size).arrayBuffer();
+        text = new TextDecoder('utf-8').decode(buffer);
+        return text.includes('/Encrypt');
+      } else if (lowerName.endsWith('.docx') || lowerName.endsWith('.doc')) {
+        const buffer = await file.slice(0, 8).arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        const signature = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+        if (bytes.length >= 8 && signature.every((val, i) => val === bytes[i])) {
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to check file protection", e);
+    }
+    return false;
+  };
+
+  const processSelectedFiles = async (filesArrayRaw) => {
+    setFolderLoading(true);
+    // Yield to let UI update
+    await new Promise(r => setTimeout(r, 150));
+
+    const pdfDocFiles = [];
+    const txtFiles = [];
+
+    for (const f of filesArrayRaw) {
+      const lowerName = f.name.toLowerCase();
+      if (lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc')) {
+        pdfDocFiles.push(f);
+      } else if (lowerName.endsWith('.txt')) {
+        txtFiles.push(f);
+      }
+    }
+
+    setTxtFileNames(txtFiles.map(f => f.name));
+    setPdfFiles(pdfDocFiles);
+
+    const initialData = await Promise.all(pdfDocFiles.map(async (f, i) => {
+      const cleanName = (f.path || f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
+      const isProtected = await checkIsProtected(f);
+      return {
+        id: i,
+        file: f,
+        name: cleanName,
+        status: 'Pending',
+        details: '-',
+        protected: isProtected ? 'Yes' : 'No'
+      };
+    }));
+
+    setBulkFilesData(initialData);
+
+    // Read passwords from txt files
+    const newPasswords = new Set();
+    for (const txtFile of txtFiles) {
+      try {
+        const text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(e);
+          reader.readAsText(txtFile);
+        });
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l);
+        lines.forEach(l => newPasswords.add(l));
+      } catch (err) {
+        console.error("Failed to read txt file", err);
+      }
+    }
+    
+    setExtractedPasswords(Array.from(newPasswords));
+    setBulkFinished(false);
+    setFolderLoading(false);
+  };
+
   const onBulkDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
-      setFolderLoading(true);
-      setTimeout(() => {
-        const filesArray = acceptedFiles.filter(f => {
-          const lowerName = f.name.toLowerCase();
-          return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
-        });
-        
-        setPdfFiles(filesArray);
-        
-        const initialData = filesArray.map((f, i) => {
-          const cleanName = (f.path || f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
-          return {
-            id: i,
-            file: f,
-            name: cleanName,
-            status: 'Pending',
-            details: '-'
-          };
-        });
-        
-        setBulkFilesData(initialData);
-        setBulkFinished(false);
-        setFolderLoading(false);
-      }, 150);
+      processSelectedFiles(acceptedFiles);
     }
   }, [setBulkFilesData, setBulkFinished]);
 
@@ -273,48 +335,17 @@ function UploadReportPage() {
     onDrop: onBulkDrop,
     disabled: bulkRunning || folderLoading,
   });
+
   const handleFolderSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFolderLoading(true);
-      
-      // Store a reference to the files object so we can read it asynchronously
-      const filesObj = e.target.files;
+      const rawFiles = Array.from(e.target.files);
       const targetInput = e.target;
-      
-      // Give the browser 150ms to paint the loading UI before we freeze it with processing
-      setTimeout(() => {
-        // Converting a large FileList to an array is very CPU intensive
-        const rawFiles = Array.from(filesObj);
-        
-        const filesArray = rawFiles.filter(f => {
-          const lowerName = f.name.toLowerCase();
-          return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
-        });
-        
-        setPdfFiles(filesArray);
-        
-        // Initialize table data
-        const initialData = filesArray.map((f, i) => {
-          const cleanName = (f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
-          return {
-            id: i,
-            file: f,
-            name: cleanName,
-            status: 'Pending',
-            details: '-'
-          };
-        });
-        
-        setBulkFilesData(initialData);
-        setBulkFinished(false);
-        setFolderLoading(false);
-        
-        // Clear input after processing so same folder can be selected again
+      processSelectedFiles(rawFiles).finally(() => {
         targetInput.value = null;
-      }, 150); 
+      });
     } else {
       setFolderLoading(false);
-      e.target.value = null;
+      if (e.target) e.target.value = null;
     }
   };
 
@@ -437,8 +468,8 @@ function UploadReportPage() {
     const concurrency = batchMode === 'batch8' ? 8 : (batchMode === 'batch4' ? 4 : (batchMode === 'batch2' ? 2 : 1));
     
     // Call the context function
-    startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency);
-      setPdfFiles([]); // Free memory!
+    startBulkUpload(bulkFilesData, passwordMap, selectedAgency, concurrency, extractedPasswords);
+    setPdfFiles([]); // Free memory!
   };
 
   const renderStatusChip = (status) => {
@@ -682,6 +713,11 @@ function UploadReportPage() {
                     {pdfFiles.length} valid files found.
                   </Typography>
                 )}
+                {!folderLoading && txtFileNames.length > 0 && (
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
+                    Detected Text File(s): <strong>{txtFileNames.join(', ')}</strong> (Passwords loaded)
+                  </Alert>
+                )}
               </Box>
 
               <Box>
@@ -739,6 +775,7 @@ function UploadReportPage() {
                       <TableHead sx={{ background: 'rgba(255,255,255,0.05)' }}>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 600 }}>File Name</TableCell>
+                          <TableCell sx={{ fontWeight: 600 }}>Protected</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
                           <TableCell sx={{ fontWeight: 600 }}>Details</TableCell>
                         </TableRow>
@@ -748,6 +785,9 @@ function UploadReportPage() {
                           <TableRow key={row.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
                             <TableCell component="th" scope="row">
                               {row.name}
+                            </TableCell>
+                            <TableCell sx={{ color: row.protected === 'Decrypted' ? 'success.main' : 'inherit', fontWeight: row.protected === 'Decrypted' ? 600 : 400 }}>
+                              {row.protected || 'No'}
                             </TableCell>
                             <TableCell>{renderStatusChip(row.status)}</TableCell>
                             <TableCell sx={{ color: row.status === 'Failed' ? 'error.main' : 'text.secondary' }}>
