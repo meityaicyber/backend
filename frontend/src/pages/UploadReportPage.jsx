@@ -240,6 +240,39 @@ function UploadReportPage() {
 
   const handleReset = () => { setResult(null); setError(''); setProgress(0); };
 
+  const onBulkDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles && acceptedFiles.length > 0) {
+      setFolderLoading(true);
+      setTimeout(() => {
+        const filesArray = acceptedFiles.filter(f => {
+          const lowerName = f.name.toLowerCase();
+          return lowerName.endsWith('.pdf') || lowerName.endsWith('.docx') || lowerName.endsWith('.doc');
+        });
+        
+        setPdfFiles(filesArray);
+        
+        const initialData = filesArray.map((f, i) => {
+          const cleanName = (f.path || f.webkitRelativePath || f.name).split('/').pop().split('\\').pop();
+          return {
+            id: i,
+            file: f,
+            name: cleanName,
+            status: 'Pending',
+            details: '-'
+          };
+        });
+        
+        setBulkFilesData(initialData);
+        setBulkFinished(false);
+        setFolderLoading(false);
+      }, 150);
+    }
+  }, [setBulkFilesData, setBulkFinished]);
+
+  const { getRootProps: getBulkRootProps, getInputProps: getBulkInputProps, isDragActive: isBulkDragActive } = useDropzone({
+    onDrop: onBulkDrop,
+    disabled: bulkRunning || folderLoading,
+  });
   const handleFolderSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setFolderLoading(true);
@@ -587,15 +620,50 @@ function UploadReportPage() {
 
               <Box>
                 <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                  2. Select Report Folder
+                  2. Select Report Folder or Files
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Select the folder containing the bulk PDF/Word reports.
+                  Select a folder or files containing the bulk PDF/Word reports. You can also drag and drop them here.
                 </Typography>
-                <Button variant="outlined" component="label" startIcon={folderLoading ? <CircularProgress size={18} color="inherit" /> : <Folder />} disabled={bulkRunning || folderLoading}>
-                  {folderLoading ? 'Reading Files...' : 'Select Folder'}
-                  <input type="file" webkitdirectory="true" directory="true" multiple hidden onChange={handleFolderSelect} disabled={bulkRunning || folderLoading} />
-                </Button>
+                
+                <Box
+                  {...getBulkRootProps()}
+                  sx={{
+                    border: '2px dashed',
+                    borderColor: isBulkDragActive ? 'primary.main' : 'rgba(255,255,255,0.2)',
+                    borderRadius: 2,
+                    p: 4,
+                    textAlign: 'center',
+                    bgcolor: isBulkDragActive ? 'rgba(0, 212, 255, 0.05)' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: 'rgba(0, 212, 255, 0.02)'
+                    }
+                  }}
+                >
+                  <input {...getBulkInputProps()} />
+                  <CloudUpload sx={{ fontSize: 48, color: isBulkDragActive ? 'primary.main' : 'text.secondary', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    {isBulkDragActive ? 'Drop files/folders here' : 'Drag & Drop files/folders here'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    or use the buttons below
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
+                    <Button variant="outlined" component="label" startIcon={folderLoading ? <CircularProgress size={18} color="inherit" /> : <Folder />} disabled={bulkRunning || folderLoading}>
+                      {folderLoading ? 'Reading Files...' : 'Select Folder'}
+                      <input type="file" webkitdirectory="true" directory="true" multiple hidden onChange={handleFolderSelect} disabled={bulkRunning || folderLoading} />
+                    </Button>
+                    <Button variant="outlined" component="label" startIcon={folderLoading ? <CircularProgress size={18} color="inherit" /> : <Description />} disabled={bulkRunning || folderLoading}>
+                      {folderLoading ? 'Reading Files...' : 'Select Files'}
+                      <input type="file" multiple hidden accept=".pdf,.doc,.docx" onChange={handleFolderSelect} disabled={bulkRunning || folderLoading} />
+                    </Button>
+                  </Box>
+                </Box>
+
                 {folderLoading && (
                   <Paper elevation={0} sx={{ mt: 2, p: 3, borderRadius: 2, background: 'rgba(0, 212, 255, 0.05)', border: '1px solid rgba(0, 212, 255, 0.15)', display: 'flex', alignItems: 'center', gap: 2 }}>
                     <CircularProgress size={28} sx={{ color: '#00D4FF' }} />
