@@ -102,9 +102,20 @@ services:
       context: .
       dockerfile: ai_pipeline/Dockerfile
     container_name: cyber-audit-ai-pipeline
+    environment:
+      - MODELS_DIR=/app/models
+    volumes:
+      - ./models:/app/models
     ports:
       - "8001:8001"
     restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   frontend:
     build:

@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY ai_pipeline/requirements.txt ./ai_reqs.txt
 COPY standardTemp/requirements.txt ./std_reqs.txt
+COPY standardTemp/requirements-models.txt ./model_reqs.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r ai_reqs.txt -r std_reqs.txt
+    pip install -r ai_reqs.txt -r std_reqs.txt -r model_reqs.txt
 
 COPY ai_pipeline /app
 COPY standardTemp /app/standardTemp

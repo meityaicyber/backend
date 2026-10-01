@@ -236,8 +236,17 @@ function PipelineResultsDialog({ open, onClose, results, reportName }) {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Security sx={{ color: '#00D4FF', fontSize: 28 }} />
           <Box>
-            <Typography variant="h6" fontWeight={700}>
+            <Typography variant="h6" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               AI Pipeline Results
+              {results._pipeline_meta?.status && (
+                <Chip 
+                  label={results._pipeline_meta.status === 'fallback' ? 'Rule-Based Fallback' : 'Model Processed'} 
+                  size="small" 
+                  color={results._pipeline_meta.status === 'fallback' ? 'warning' : 'success'} 
+                  variant="outlined"
+                  sx={{ ml: 1, height: 20, fontSize: '0.7rem' }}
+                />
+              )}
             </Typography>
             <Typography variant="caption" color="text.secondary">
               {reportName}

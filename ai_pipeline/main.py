@@ -66,6 +66,12 @@ async def run_pipeline(
         elif "document_control" in data:
             data["document_control"]["document_id"] = report_id
             
+        # Attach pipeline meta for the frontend to know how it was processed
+        data["_pipeline_meta"] = {
+            "status": result.status,
+            **result.meta
+        }
+            
         return data
         
     except PipelineError as e:
