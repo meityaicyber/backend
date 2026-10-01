@@ -99,8 +99,8 @@ services:
 
   ai-pipeline:
     build:
-      context: ./ai_pipeline
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ai_pipeline/Dockerfile
     container_name: cyber-audit-ai-pipeline
     ports:
       - "8001:8001"

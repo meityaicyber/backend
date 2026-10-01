@@ -1098,7 +1098,7 @@ function ReportsPage() {
       />
 
       <Card className="fade-in-up" sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-        <CardContent sx={{ p: 0, flexGrow: 1, height: 600, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ p: 0, flexGrow: 1, minHeight: 600, display: 'flex', flexDirection: 'column' }}>
           <DataGrid
             rows={reports}
             columns={columns}
