@@ -107,3 +107,7 @@ If you want to start completely fresh and wipe the database and uploaded files:
 ```bash
 docker compose down -v
 ```
+**To Downlaod Models:**
+```bash
+docker exec -it cyber-audit-backend python download_models.py
+```

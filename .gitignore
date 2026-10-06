@@ -29,6 +29,7 @@ wheels/
 
 # Node / Frontend
 node_modules/
+models_cache/
 dist/
 dist-ssr/
 npm-debug.log*

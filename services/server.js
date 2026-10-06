@@ -1,6 +1,8 @@
 const express = require('express');
 const { exec } = require('child_process');
 const path = require('path');
+const util = require('util');
+const execPromise = util.promisify(exec);
 const app = express();
 const port = 8005;
 
@@ -12,35 +14,57 @@ const getErrorLogs = (logs) => {
     return logs.split('\n').filter(line => 
         line.toLowerCase().includes('error') || 
         line.toLowerCase().includes('exception') ||
-        line.toLowerCase().includes('fail')
+        line.toLowerCase().includes('fail') ||
+        line.toLowerCase().includes('502') ||
+        line.toLowerCase().includes('504')
     ).join('\n');
 };
 
-app.get('/', (req, res) => {
-    // List all containers that are part of this project (we can just list all docker-compose containers or all in general)
-    exec('docker ps -a --format "{{.Names}}|{{.State}}|{{.Status}}"', (err, stdout, stderr) => {
-        if (err) {
-            return res.status(500).send("Error fetching services: " + err.message);
-        }
-        const containers = stdout.trim().split('\n').filter(Boolean).map(line => {
+const hasRecentErrors = async (containerName) => {
+    try {
+        const { stdout, stderr } = await execPromise(`docker logs --tail 50 ${containerName}`);
+        const logs = stderr + stdout;
+        const errorLogs = getErrorLogs(logs);
+        return errorLogs.trim().length > 0;
+    } catch (e) {
+        return false;
+    }
+};
+
+app.get('/', async (req, res) => {
+    try {
+        const { stdout } = await execPromise('docker ps -a --format "{{.Names}}|{{.State}}|{{.Status}}"');
+        let containers = stdout.trim().split('\n').filter(Boolean).map(line => {
             const [name, state, status] = line.split('|');
             return { name, state, status };
         });
+
+        // Filter out old removed containers just in case, though they shouldn't show in ps -a if removed
+        // Now check for errors concurrently
+        await Promise.all(containers.map(async (container) => {
+            container.hasError = await hasRecentErrors(container.name);
+        }));
+
         res.render('index', { containers });
-    });
+    } catch (err) {
+        res.status(500).send("Error fetching services: " + err.message);
+    }
 });
 
-app.get('/logs/:containerName', (req, res) => {
+app.get('/logs/:containerName', async (req, res) => {
     const containerName = req.params.containerName;
     const filter = req.query.filter === 'errors';
     
-    exec(`docker logs --tail 500 ${containerName}`, (err, stdout, stderr) => {
+    try {
+        const { stdout, stderr } = await execPromise(`docker logs --tail 500 ${containerName}`);
         let logs = stderr + stdout; 
         if (filter) {
             logs = getErrorLogs(logs);
         }
         res.render('logs', { containerName, logs, filter });
-    });
+    } catch (err) {
+        res.status(500).send("Error fetching logs: " + err.message);
+    }
 });
 
 app.listen(port, () => {

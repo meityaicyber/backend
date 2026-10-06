@@ -93,6 +93,8 @@ services:
       FRONTEND_URL: http://localhost:3000
       SEAWEEDFS_FILER_URL: ${SEAWEEDFS_FILER_URL:-http://seaweedfs-filer:8888}
       AI_PIPELINE_URL: http://ai-pipeline:8001
+    volumes:
+      - ./models_cache:/root/.cache/huggingface
     ports:
       - "8000:8000"
     restart: unless-stopped
@@ -102,6 +104,8 @@ services:
       context: ./ai_pipeline
       dockerfile: Dockerfile
     container_name: cyber-audit-ai-pipeline
+    volumes:
+      - ./models_cache:/root/.cache/huggingface
     ports:
       - "8001:8001"
     restart: unless-stopped

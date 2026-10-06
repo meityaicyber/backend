@@ -12,12 +12,6 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
-# Download and cache HF Model Weights first (so code changes don't bust the 1.6GB cache)
-COPY download_models.py .
-RUN --mount=type=cache,target=/var/cache/huggingface \
-    HF_HOME=/var/cache/huggingface python download_models.py && \
-    mkdir -p /root/.cache/huggingface && \
-    cp -a /var/cache/huggingface/. /root/.cache/huggingface/
 
 # Copy application code
 COPY . .
