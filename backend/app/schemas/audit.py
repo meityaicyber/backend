@@ -41,3 +41,5 @@ class DashboardStats(BaseModel):
     total_users: int
     recent_uploads: List[Dict[str, Any]]
     reports_by_status: Dict[str, int]
+    total_storage: Optional[int] = 0
+    upload_trend: Optional[List[Dict[str, Any]]] = []

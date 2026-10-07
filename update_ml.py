@@ -1,160 +1,133 @@
 import re
 
-file_path = r'c:\Main Project\Module\backend\frontend\src\pages\MLAnalyticsDashboardPage.jsx'
-
-with open(file_path, 'r', encoding='utf-8') as f:
+with open(r'C:\Main Project\Module\backend\backend\app\routers\ml_analytics.py', 'r', encoding='utf-8') as f:
     content = f.read()
 
-if 'react-grid-layout' not in content:
-    content = content.replace(
-        "import React, { useEffect, useState } from 'react';",
-        "import React, { useEffect, useState } from 'react';\nimport { Responsive, WidthProvider } from 'react-grid-layout';\nimport 'react-grid-layout/css/styles.css';\nimport 'react-resizable/css/styles.css';\nconst ResponsiveGridLayout = WidthProvider(Responsive);"
-    )
-    
-    if 'FormControl' not in content:
-        content = content.replace(
-            "} from '@mui/material';",
-            "  FormControl, InputLabel, Select, MenuItem, Checkbox, ListItemText, OutlinedInput\n} from '@mui/material';"
-        )
+# Add timedelta
+content = content.replace('from datetime import datetime, timezone', 'from datetime import datetime, timezone, timedelta')
 
-state_str = '''
-  const allWidgets = [
-    { id: 'forecast', label: '6-Month Vulnerability Forecast' },
-    { id: 'clustering', label: 'Agency Risk Clustering' },
-    { id: 'topsis', label: 'Prioritized Action Queue' },
-    { id: 'anomalies', label: 'Anomalous Agencies' }
-  ];
-  
-  const [visibleWidgets, setVisibleWidgets] = useState(() => {
-    const saved = localStorage.getItem('mlVisibleWidgets');
-    return saved ? JSON.parse(saved) : allWidgets.map(w => w.id);
-  });
-  
-  const [layouts, setLayouts] = useState(() => {
-    const saved = localStorage.getItem('mlLayouts');
-    return saved ? JSON.parse(saved) : {
-      lg: [
-        { i: 'forecast', x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
-        { i: 'clustering', x: 6, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
-        { i: 'topsis', x: 0, y: 2, w: 7, h: 3, minW: 4, minH: 3 },
-        { i: 'anomalies', x: 7, y: 2, w: 5, h: 3, minW: 3, minH: 3 }
-      ]
-    };
-  });
-
-  useEffect(() => {
-    localStorage.setItem('mlVisibleWidgets', JSON.stringify(visibleWidgets));
-  }, [visibleWidgets]);
-
-  useEffect(() => {
-    localStorage.setItem('mlLayouts', JSON.stringify(layouts));
-  }, [layouts]);
-'''
-
-if 'const allWidgets =' not in content:
-    content = content.replace(
-        "const [loading, setLoading] = useState(true);",
-        "const [loading, setLoading] = useState(true);\n" + state_str
-    )
-
-customize_btn = '''
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 200, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 1 }}>
-            <InputLabel sx={{ color: 'text.secondary' }}>Customize Widgets</InputLabel>
-            <Select
-              multiple
-              value={visibleWidgets}
-              onChange={(e) => setVisibleWidgets(e.target.value)}
-              input={<OutlinedInput label="Customize Widgets" />}
-              renderValue={(selected) => \\ Widgets\}
-            >
-              {allWidgets.map((w) => (
-                <MenuItem key={w.id} value={w.id}>
-                  <Checkbox checked={visibleWidgets.indexOf(w.id) > -1} />
-                  <ListItemText primary={w.label} />
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Box>
-'''
-
-if 'Customize Widgets' not in content:
-    # Need to find the header block correctly to insert the customize button next to it or at the right side.
-    # The header is typically <Box ...> ... <Typography ...> ... </Typography> <Typography ...> ... </Typography> </Box>
-    # Let's replace the closing </Box> of the header with the new Box and then </Box>
-    # Wait, the header is at the top. Let's find it safely.
-    # The page structure usually starts with:
-    # return (
-    #   <Box>
-    #     <Box sx={{ mb: 4 ... }}>
-    #        <Typography variant="h4">...</Typography>
-    #        <Typography variant="body2">...</Typography>
-    #     </Box>
-    
-    # We can change the header wrapper to have display: flex, justifyContent: space-between, alignItems: flex-start
-    # if it's not already.
-    # Let's just append it after the body2 typography.
-    content = content.replace(
-        "Powered by Machine Learning models\n        </Typography>\n      </Box>",
-        "Powered by Machine Learning models\n        </Typography>\n      </Box>\n" + customize_btn
-    )
-    # If the above doesn't match exactly because of formatting, we can use regex.
-    content = re.sub(
-        r'(Powered by Machine Learning models.*?</Typography>\s*</Box>)', 
-        r'\1\n' + customize_btn.replace('\\', '\\\\'), # escape backslashes for re.sub
-        content,
-        flags=re.DOTALL
-    )
-
-cards = re.findall(r'(<Card\b[^>]*>[\s\S]*?</Card>)', content)
-print(f"Found {len(cards)} cards")
-
-def get_card(title_pattern):
-    for card in cards:
-        if re.search(title_pattern, card):
-            return card
+helper_code = """
+def get_time_threshold(time_range: str):
+    if not time_range or time_range == "ALL":
+        return None
+    now = datetime.now(timezone.utc)
+    if time_range == "30_DAYS":
+        return now - timedelta(days=30)
+    elif time_range == "6_MONTHS":
+        return now - timedelta(days=180)
+    elif time_range == "1_YEAR":
+        return now - timedelta(days=365)
     return None
+"""
 
-widgets_mapping = {
-    'forecast': get_card(r'6-Month Vulnerability Forecast'),
-    'clustering': get_card(r'Agency Risk Clustering'),
-    'topsis': get_card(r'Prioritized Action Queue'),
-    'anomalies': get_card(r'Anomalous Agencies')
-}
+content = content.replace('router = APIRouter(prefix="/api/ml", tags=["Machine Learning"])', 'router = APIRouter(prefix="/api/ml", tags=["Machine Learning"])\n' + helper_code)
 
-start_offset = content.find('<Grid container spacing={3}')
-end_offset = content.rfind('</Box>', 0, content.rfind(');'))
+# 1. Update forecast_trends
+forecast_sig = """async def forecast_trends(
+    months: int = Query(6, ge=1, le=12),
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):"""
+content = re.sub(r'async def forecast_trends\([^)]+\):', forecast_sig, content)
 
-if start_offset != -1 and end_offset != -1:
-    new_grid_content = '''
-      {/*  CUSTOMIZABLE GRID LAYOUT  */}
-      <ResponsiveGridLayout
-        className="layout"
-        layouts={layouts}
-        onLayoutChange={(currentLayout, allLayouts) => setLayouts(allLayouts)}
-        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
-        rowHeight={170}
-        draggableHandle=".MuiCardContent-root"
-      >
-    '''
+forecast_query = """    query = select(ReportsData.report_date, func.count(Vulnerability.vuln_id).label("count")).select_from(ReportsData).join(Vulnerability, ReportsData.report_id == Vulnerability.report_id)
+    if agency_id:
+        query = query.join(Report, ReportsData.report_id == Report.report_id).where(Report.agency_id == agency_id)
+    if report_id:
+        query = query.where(ReportsData.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+    query = query.group_by(ReportsData.report_date).order_by(ReportsData.report_date)"""
+content = re.sub(r'    query = select\(ReportsData\.report_date.*?order_by\(ReportsData\.report_date\)', forecast_query, content)
+
+# 2. Update clusters
+clusters_sig = """async def regional_clusters(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):"""
+content = re.sub(r'async def regional_clusters\([^)]+\):', clusters_sig, content)
+
+clusters_query = """    query = select(
+        Agency.agency_id,
+        Agency.agency_name,
+        func.count(Report.report_id).label("total_reports"),
+        func.avg(Vulnerability.cvss_score).label("avg_cvss"),
+        func.count(Vulnerability.vuln_id).label("total_vulns"),
+        func.sum(
+            case(
+                (Vulnerability.severity == SeverityLevel.CRITICAL, 1.0),
+                else_=0.0
+            )
+        ).label("critical_vulns")
+    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
     
-    for w_id, w_content in widgets_mapping.items():
-        if w_content:
-            new_grid_content += f'\n        <div key="{w_id}">\n          {{visibleWidgets.includes("{w_id}") && (\n            {w_content}\n          )}}\n        </div>'
-    
-    new_grid_content += '\n      </ResponsiveGridLayout>\n    '
-    
-    content = content[:start_offset] + new_grid_content + content[end_offset:]
-    print("Grids replaced")
-else:
-    print("Could not find grid start/end offsets")
+    if agency_id:
+        query = query.where(Agency.agency_id == agency_id)
+    if report_id:
+        query = query.where(Report.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+        
+    query = query.group_by(Agency.agency_id, Agency.agency_name)"""
+content = re.sub(r'    query = select\(.*?\.group_by\(Agency\.agency_id, Agency\.agency_name\)', clusters_query, content, flags=re.DOTALL)
 
-# Fix any backtick escapes from Set-Content that might have been mangled
-content = content.replace("renderValue={(selected) => \\ Widgets\}", "renderValue={(selected) => ${selected.length} Widgets}")
-content = content.replace("renderValue={(selected) => \\\\\ Widgets\\\}", "renderValue={(selected) => ${selected.length} Widgets}")
 
-with open(file_path, 'w', encoding='utf-8') as f:
+# 3. Update anomalies
+anomalies_sig = """async def audit_score_anomalies(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):"""
+content = re.sub(r'async def audit_score_anomalies\([^)]+\):', anomalies_sig, content)
+
+anomalies_query = """    query = select(Agency.agency_id, Agency.agency_name, Report.report_id, Vulnerability.cvss_score).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
+    
+    if agency_id:
+        query = query.where(Agency.agency_id == agency_id)
+    if report_id:
+        query = query.where(Report.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)"""
+content = re.sub(r'    query = select\(Agency\.agency_id.*?== Vulnerability\.report_id\)', anomalies_query, content)
+
+
+# 4. Update prioritize
+prioritize_sig = """async def task_prioritization(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):"""
+content = re.sub(r'async def task_prioritization\([^)]+\):', prioritize_sig, content)
+
+prioritize_query = """    query = select(Vulnerability).where(Vulnerability.status == VulnStatus.OPEN)
+    
+    if agency_id or report_id:
+        query = query.join(Report, Vulnerability.report_id == Report.report_id)
+        if agency_id:
+            query = query.where(Report.agency_id == agency_id)
+        if report_id:
+            query = query.where(Vulnerability.report_id == report_id)
+            
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+        
+    query = query.order_by(Vulnerability.cvss_score.desc()).limit(1000)"""
+content = re.sub(r'    query = \(\s*select\(Vulnerability\)\s*\.where\(Vulnerability\.status == VulnStatus\.OPEN\)\s*\.order_by\(Vulnerability\.cvss_score\.desc\(\)\)\s*\.limit\(1000\)\s*\)', prioritize_query, content, flags=re.DOTALL)
+
+
+with open(r'C:\Main Project\Module\backend\backend\app\routers\ml_analytics.py', 'w', encoding='utf-8') as f:
     f.write(content)
-print("Saved.")

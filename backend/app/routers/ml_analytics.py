@@ -3,7 +3,7 @@ import math
 import asyncio
 import numpy as np
 import pandas as pd
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -26,6 +26,19 @@ from sklearn.ensemble import IsolationForest
 import torch
 
 router = APIRouter(prefix="/api/ml", tags=["Machine Learning"])
+
+def get_time_threshold(time_range: str):
+    if not time_range or time_range == "ALL":
+        return None
+    now = datetime.now(timezone.utc)
+    if time_range == "30_DAYS":
+        return now - timedelta(days=30)
+    elif time_range == "6_MONTHS":
+        return now - timedelta(days=180)
+    elif time_range == "1_YEAR":
+        return now - timedelta(days=365)
+    return None
+
 
 # Lazy loading the HF Pipeline to save memory during tests if unused
 _nlp_pipeline = None
@@ -57,6 +70,9 @@ def get_nlp_pipeline():
 @router.get("/forecast")
 async def forecast_trends(
     months: int = Query(6, ge=1, le=12),
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -64,7 +80,15 @@ async def forecast_trends(
     Task 1: Trend Analysis (Time Series Forecasting)
     Upgraded to Facebook Prophet for robust feature engineering (seasonality, trend shifts).
     """
-    query = select(ReportsData.report_date, func.count(Vulnerability.vuln_id).label("count")).select_from(ReportsData).join(Vulnerability, ReportsData.report_id == Vulnerability.report_id).group_by(ReportsData.report_date).order_by(ReportsData.report_date)
+    query = select(ReportsData.report_date, func.count(Vulnerability.vuln_id).label("count")).select_from(ReportsData).join(Vulnerability, ReportsData.report_id == Vulnerability.report_id)
+    if agency_id:
+        query = query.join(Report, ReportsData.report_id == Report.report_id).where(Report.agency_id == agency_id)
+    if report_id:
+        query = query.where(ReportsData.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+    query = query.group_by(ReportsData.report_date).order_by(ReportsData.report_date)
     result = await db.execute(query)
     rows = result.all()
     
@@ -174,6 +198,9 @@ async def severity_assessment(
 
 @router.get("/clusters")
 async def regional_clusters(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -193,7 +220,17 @@ async def regional_clusters(
                 else_=0.0
             )
         ).label("critical_vulns")
-    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id).group_by(Agency.agency_id, Agency.agency_name)
+    ).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
+    
+    if agency_id:
+        query = query.where(Agency.agency_id == agency_id)
+    if report_id:
+        query = query.where(Report.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+        
+    query = query.group_by(Agency.agency_id, Agency.agency_name)
     
     result = await db.execute(query)
     rows = result.all()
@@ -245,6 +282,9 @@ async def regional_clusters(
 
 @router.get("/anomalies")
 async def audit_score_anomalies(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -253,6 +293,14 @@ async def audit_score_anomalies(
     Enhanced Isolation Forest with variance and percentile feature engineering.
     """
     query = select(Agency.agency_id, Agency.agency_name, Report.report_id, Vulnerability.cvss_score).select_from(Agency).outerjoin(Report, Agency.agency_id == Report.agency_id).outerjoin(Vulnerability, Report.report_id == Vulnerability.report_id)
+    
+    if agency_id:
+        query = query.where(Agency.agency_id == agency_id)
+    if report_id:
+        query = query.where(Report.report_id == report_id)
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
     
     result = await db.execute(query)
     rows = result.all()
@@ -305,6 +353,9 @@ async def audit_score_anomalies(
 
 @router.get("/prioritize")
 async def task_prioritization(
+    agency_id: Optional[uuid.UUID] = None,
+    report_id: Optional[uuid.UUID] = None,
+    time_range: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -314,12 +365,20 @@ async def task_prioritization(
     OPTIMIZATION: Limits DB retrieval to the top 1000 most pressing (highest CVSS) to prevent RAM explosion at extreme scale.
     """
     # OPTIMIZATION: Database-Level Scalability
-    query = (
-        select(Vulnerability)
-        .where(Vulnerability.status == VulnStatus.OPEN)
-        .order_by(Vulnerability.cvss_score.desc())
-        .limit(1000)
-    )
+    query = select(Vulnerability).where(Vulnerability.status == VulnStatus.OPEN)
+    
+    if agency_id or report_id:
+        query = query.join(Report, Vulnerability.report_id == Report.report_id)
+        if agency_id:
+            query = query.where(Report.agency_id == agency_id)
+        if report_id:
+            query = query.where(Vulnerability.report_id == report_id)
+            
+    threshold = get_time_threshold(time_range)
+    if threshold:
+        query = query.where(Vulnerability.created_at >= threshold)
+        
+    query = query.order_by(Vulnerability.cvss_score.desc()).limit(1000)
     result = await db.execute(query)
     vulns = result.scalars().all()
     

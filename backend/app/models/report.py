@@ -270,4 +270,17 @@ class Vulnerability(Base):
     )
 
     report = relationship("Report", back_populates="vulnerabilities")
+    remediation_info = relationship("VulnerabilityRemediationInfo", back_populates="vulnerability", uselist=False, lazy="joined", cascade="all, delete-orphan")
 
+
+
+
+class VulnerabilityRemediationInfo(Base):
+    __tablename__ = 'vulnerability_remediation_info'
+
+    vuln_id = Column(UUID(as_uuid=True), ForeignKey('vulnerabilities.vuln_id', ondelete='CASCADE'), primary_key=True)
+    estimated_effort = Column(String(50), nullable=True) # LOW, MEDIUM, HIGH
+    required_teams = Column(ARRAY(Text), nullable=True)
+    depends_on = Column(ARRAY(UUID(as_uuid=True)), nullable=True)
+
+    vulnerability = relationship('Vulnerability', back_populates='remediation_info')

@@ -79,9 +79,32 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         for r in recent
     ]
 
+    # Total Storage
+    storage_sum = await db.execute(select(func.sum(Report.file_size)))
+    total_storage = storage_sum.scalar() or 0
+
+    # Upload Trend (Last 7 Days)
+    import datetime
+    seven_days_ago = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+    trend_result = await db.execute(
+        select(Report.created_at).where(Report.created_at >= seven_days_ago)
+    )
+    trend_dates = trend_result.scalars().all()
+    
+    from collections import Counter
+    trend_counts = Counter(d.strftime("%Y-%m-%d") for d in trend_dates if d)
+    
+    upload_trend = []
+    for i in range(6, -1, -1):
+        dt = datetime.datetime.utcnow() - datetime.timedelta(days=i)
+        date_str = dt.strftime("%Y-%m-%d")
+        upload_trend.append({"date": date_str, "count": trend_counts.get(date_str, 0)})
+
     return {
         "total_reports": total_reports,
         "total_users": total_users,
         "recent_uploads": recent_uploads,
         "reports_by_status": status_counts,
+        "total_storage": total_storage,
+        "upload_trend": upload_trend,
     }

@@ -6,7 +6,8 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 import {
   Box, Card, CardContent, Grid, Typography, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Chip, Skeleton, Tooltip, Alert,
-  FormControl, InputLabel, Select, MenuItem, Checkbox, ListItemText, OutlinedInput
+  FormControl, InputLabel, Select, MenuItem, Checkbox, ListItemText, OutlinedInput,
+  Tabs, Tab
 } from '@mui/material';
 import {
   Timeline, Assessment, BubbleChart, ReportProblem, ErrorOutline
@@ -16,6 +17,7 @@ import {
   ScatterChart, Scatter, ZAxis
 } from 'recharts';
 import api from '../api/axios';
+import { PrioritizationTable, PrioritizationDistribution } from '../components/PrioritizationWidgets';
 
 const GlassTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -43,6 +45,14 @@ const GlassTooltip = ({ active, payload, label }) => {
 };
 
 export default function MLAnalyticsDashboardPage() {
+  const [viewMode, setViewMode] = useState('GLOBAL');
+  const [selectedAgencyId, setSelectedAgencyId] = useState('');
+  const [selectedFileId, setSelectedFileId] = useState('');
+  const [timeRange, setTimeRange] = useState('ALL');
+  
+  const [agencies, setAgencies] = useState([]);
+  const [files, setFiles] = useState([]);
+
   const [forecast, setForecast] = useState(null);
   const [clusters, setClusters] = useState(null);
   const [anomalies, setAnomalies] = useState(null);
@@ -53,7 +63,9 @@ export default function MLAnalyticsDashboardPage() {
     { id: 'forecast', label: '6-Month Vulnerability Forecast' },
     { id: 'clustering', label: 'Agency Risk Clustering' },
     { id: 'topsis', label: 'Prioritized Action Queue' },
-    { id: 'anomalies', label: 'Anomalous Agencies' }
+    { id: 'anomalies', label: 'Anomalous Agencies' },
+    { id: 'priority_table', label: 'Task Prioritization' },
+    { id: 'priority_dist', label: 'Task Priority Distribution' }
   ];
   
   const [visibleWidgets, setVisibleWidgets] = useState(() => {
@@ -68,7 +80,9 @@ export default function MLAnalyticsDashboardPage() {
         { i: 'forecast', x: 0, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
         { i: 'clustering', x: 6, y: 0, w: 6, h: 2, minW: 3, minH: 2 },
         { i: 'topsis', x: 0, y: 2, w: 7, h: 3, minW: 4, minH: 2 },
-        { i: 'anomalies', x: 7, y: 2, w: 5, h: 3, minW: 3, minH: 2 }
+        { i: 'anomalies', x: 7, y: 2, w: 5, h: 3, minW: 3, minH: 2 },
+        { i: 'priority_table', x: 0, y: 5, w: 8, h: 3, minW: 4, minH: 3 },
+        { i: 'priority_dist', x: 8, y: 5, w: 4, h: 3, minW: 3, minH: 2 }
       ]
     };
   });
@@ -84,14 +98,48 @@ export default function MLAnalyticsDashboardPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        const [agenciesRes, reportsRes] = await Promise.all([
+          api.get('/api/agencies'),
+          api.get('/api/reports')
+        ]);
+        setAgencies((agenciesRes.data.agencies || []).map(a => ({ id: a.agency_id, name: a.agency_name })));
+        setFiles((reportsRes.data.reports || []).map(r => ({
+          id: r.report_id,
+          name: r.original_filename,
+          agencyId: r.agency?.agency_id,
+          date: r.created_at
+        })));
+      } catch (err) {
+        console.error("Failed to fetch dropdown data", err);
+      }
+    };
+    fetchDropdownData();
+  }, []);
+
+  useEffect(() => {
+    setSelectedFileId('');
+  }, [selectedAgencyId]);
+
+  useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const queryParams = new URLSearchParams();
+        if (viewMode === 'AGENCY' && selectedAgencyId) queryParams.append('agency_id', selectedAgencyId);
+        if (viewMode === 'FILE' && selectedFileId) queryParams.append('report_id', selectedFileId);
+        if (timeRange !== 'ALL') queryParams.append('time_range', timeRange);
+        
+        const qs = queryParams.toString();
+        const qsPrefix = qs ? `&${qs}` : '';
+        const qsAlone = qs ? `?${qs}` : '';
+
         const [fRes, cRes, aRes, pRes] = await Promise.allSettled([
-          api.get('/api/ml/forecast?months=6'),
-          api.get('/api/ml/clusters'),
-          api.get('/api/ml/anomalies'),
-          api.get('/api/ml/prioritize')
+          api.get(`/api/ml/forecast?months=6${qsPrefix}`),
+          api.get(`/api/ml/clusters${qsAlone}`),
+          api.get(`/api/ml/anomalies${qsAlone}`),
+          api.get(`/api/ml/prioritization${qsAlone}`)
         ]);
         
         if (fRes.status === 'fulfilled') setForecast(fRes.value.data);
@@ -105,7 +153,7 @@ export default function MLAnalyticsDashboardPage() {
       }
     };
     fetchData();
-  }, []);
+  }, [viewMode, selectedAgencyId, selectedFileId, timeRange]);
 
   if (loading) {
     return (
@@ -145,6 +193,16 @@ export default function MLAnalyticsDashboardPage() {
     }));
   }
 
+  const handleTabChange = (event, newValue) => {
+    setViewMode(newValue);
+    if (newValue === 'GLOBAL') {
+      setSelectedAgencyId('');
+      setSelectedFileId('');
+    }
+  };
+
+  const agencyFiles = files.filter(f => f.agencyId === selectedAgencyId);
+
   return (
     <Box>
       <Box sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -175,10 +233,81 @@ export default function MLAnalyticsDashboardPage() {
               ))}
             </Select>
           </FormControl>
+          
+          <Box sx={{ bgcolor: 'rgba(17, 24, 39, 0.4)', borderRadius: 2, p: 0.5, border: '1px solid rgba(255,255,255,0.05)' }}>
+            <Tabs 
+              value={viewMode} 
+              onChange={handleTabChange}
+              indicatorColor="primary"
+              textColor="primary"
+              sx={{
+                minHeight: 40,
+                '& .MuiTab-root': { minHeight: 40, textTransform: 'none', fontWeight: 600, fontSize: '0.85rem' }
+              }}
+            >
+              <Tab label="Global View" value="GLOBAL" />
+              <Tab label="Agency View" value="AGENCY" />
+              <Tab label="File / Report View" value="FILE" />
+            </Tabs>
+          </Box>
         </Box>
 
         </Box>
       </Box>
+
+      {/* ── Filter Controls ── */}
+      <Card sx={{ mb: 3.5, background: 'rgba(17, 24, 39, 0.4)', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <CardContent sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+          
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel>Time Range</InputLabel>
+            <Select value={timeRange} label="Time Range" onChange={(e) => setTimeRange(e.target.value)}>
+              <MenuItem value="ALL">All Time</MenuItem>
+              <MenuItem value="30_DAYS">Last 30 Days</MenuItem>
+              <MenuItem value="6_MONTHS">Last 6 Months</MenuItem>
+              <MenuItem value="1_YEAR">Last 1 Year</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* Scope Filters */}
+          {(viewMode === 'AGENCY' || viewMode === 'FILE') && (
+            <>
+              <Box sx={{ borderLeft: '1px solid rgba(255,255,255,0.1)', height: 32, mx: 1 }} />
+              <FormControl size="small" sx={{ minWidth: 240 }}>
+                <InputLabel>Select Agency</InputLabel>
+                <Select
+                  value={selectedAgencyId}
+                  label="Select Agency"
+                  onChange={(e) => setSelectedAgencyId(e.target.value)}
+                >
+                  {agencies.map((agency) => (
+                    <MenuItem key={agency.id} value={agency.id}>
+                      {agency.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              {viewMode === 'FILE' && (
+                <FormControl size="small" sx={{ minWidth: 240 }} disabled={!selectedAgencyId}>
+                  <InputLabel>Select File / Report</InputLabel>
+                  <Select
+                    value={selectedFileId}
+                    label="Select File / Report"
+                    onChange={(e) => setSelectedFileId(e.target.value)}
+                  >
+                    {agencyFiles.map((file) => (
+                      <MenuItem key={file.id} value={file.id}>
+                        {file.name} ({new Date(file.date).toLocaleDateString()})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
@@ -332,6 +461,12 @@ export default function MLAnalyticsDashboardPage() {
             </CardContent>
           </Card>
           </div>
+        <div key="priority_table">
+          <PrioritizationTable data={prioritize?.data} meta={prioritize?.meta} />
+        </div>
+        <div key="priority_dist">
+          <PrioritizationDistribution data={prioritize?.data} />
+        </div>
       </ResponsiveGridLayout>
     </Box>
   );
